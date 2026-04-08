@@ -297,6 +297,14 @@ export class SshService {
 
     public async executeCommand(command: string): Promise<string> {
         return new Promise((resolve, reject) => {
+            if (this.isMock) {
+                if (command.includes('docker ps')) {
+                    resolve("id1|nginx:latest|Up 2 hours|web-server\nid2|postgres:13|Up 5 hours|db-prod\nid3|redis:alpine|Exited (0) 1 day ago|cache");
+                } else {
+                    resolve(`Comando mock executado: ${command}`);
+                }
+                return;
+            }
             if (this._isWsl) {
                 const cmdPrefix = this.wslDistro ? `wsl -d ${this.wslDistro} --` : `wsl --`;
                 child_process.exec(`${cmdPrefix} sh -c "${command}"`, (err, stdout, stderr) => {

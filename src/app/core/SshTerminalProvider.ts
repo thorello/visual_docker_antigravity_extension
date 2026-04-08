@@ -21,6 +21,12 @@ export class SshTerminalProvider implements vscode.Pseudoterminal {
             }
         ).then(stream => {
             this.shellStream = stream;
+            // Auto sudo su
+            setTimeout(() => {
+                if (this.shellStream && this.shellStream.write) {
+                    this.shellStream.write('sudo su\n');
+                }
+            }, 1000);
         }).catch(err => {
             this.writeEmitter.fire(`\r\nErro ao abrir shell: ${err.message}\r\n`);
             this.closeEmitter.fire(1);
