@@ -1,59 +1,52 @@
 import * as vscode from 'vscode';
-import { VisualServerExplorerProvider } from './core/VisualServerExplorerProvider';
-import { VisualServerPanel } from './core/VisualServerPanel';
-import { SshFileSystemProvider } from './core/SshFileSystemProvider';
-import { StorageService } from './services/storageService';
+import { SidebarController } from './app/features/sidebar/logic/SidebarController';
+import { MainScreenController } from './app/features/main_screen/logic/MainScreenController';
+import { FileSystemProvider } from './app/core/FileSystemProvider';
+import { StorageService } from './app/core/StorageService';
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Visual Server Extension is active!');
+    console.log('Antigravity Extension Blueprint is active!');
 
     const storageService = new StorageService(context);
-    const fsProvider = new SshFileSystemProvider(context, storageService);
-    vscode.workspace.registerFileSystemProvider('visual-ssh', fsProvider, { isCaseSensitive: true });
+    const fsProvider = new FileSystemProvider(context, storageService);
+    vscode.workspace.registerFileSystemProvider('antigravity-fs', fsProvider, { isCaseSensitive: true });
 
-    const provider = new VisualServerExplorerProvider(context.extensionUri);
-    const treeView = vscode.window.createTreeView('visual-server-view', {
-        treeDataProvider: provider,
+    const sidebarController = new SidebarController(context.extensionUri);
+    const treeView = vscode.window.createTreeView('antigravity-sidebar-view', {
+        treeDataProvider: sidebarController,
         showCollapseAll: true
     });
     
-    // Automatiza abertura do Dashboard ao focar na sidebar
-    treeView.onDidChangeVisibility(e => {
+    // Auto-open Main Screen when sidebar is focused
+    treeView.onDidChangeVisibility((e: vscode.TreeViewVisibilityChangeEvent) => {
         if (e.visible) {
-            vscode.commands.executeCommand('visualServer.openDashboard');
+            vscode.commands.executeCommand('antigravity.openMainScreen');
         }
     });
 
     context.subscriptions.push(treeView);
 
-    let openDashboardCommand = vscode.commands.registerCommand('visualServer.openDashboard', () => {
-        VisualServerPanel.createOrShow(context.extensionUri, context);
+    let openMainScreenCommand = vscode.commands.registerCommand('antigravity.openMainScreen', () => {
+        MainScreenController.createOrShow(context.extensionUri, context);
     });
 
-    let openInExplorerCommand = vscode.commands.registerCommand('visualServer.openInExplorer', (serverId: string) => {
-        const uri = vscode.Uri.parse(`visual-ssh://${serverId}/`);
-        vscode.workspace.updateWorkspaceFolders(vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders.length : 0, 0, {
-            uri,
-            name: `SSH: ${serverId}`
-        });
-    });
+    context.subscriptions.push(openMainScreenCommand);
 
-    // Sincronização: Panel comunica ao Provider quando mudar o servidor ativo
-    let serverConnectedCmd = vscode.commands.registerCommand('visualServer.onServerConnected', (config: any) => {
-        if (VisualServerPanel.currentPanel) {
-            const sshService = VisualServerPanel.currentPanel.getSshService(config.id);
-            if (sshService) {
-                provider.updateActiveServer(config, sshService);
-            }
+    // Generic communication commands
+    let onConnectedCmd = vscode.commands.registerCommand('antigravity.onConnected', (config: any) => {
+        if (MainScreenController.currentPanel) {
+            // Logic for when something connects
+            sidebarController.refresh();
         }
     });
 
-    let serverDisconnectedCmd = vscode.commands.registerCommand('visualServer.onServerDisconnected', (serverId: string) => {
-        provider.clearActiveServer();
+    let onDisconnectedCmd = vscode.commands.registerCommand('antigravity.onDisconnected', () => {
+        sidebarController.refresh();
     });
 
-    context.subscriptions.push(openDashboardCommand, openInExplorerCommand, serverConnectedCmd, serverDisconnectedCmd);
+    context.subscriptions.push(onConnectedCmd, onDisconnectedCmd);
 }
 
 export function deactivate() {}
+
 

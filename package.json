@@ -1,8 +1,8 @@
 {
-  "name": "visual-server",
-  "displayName": "Visual Server",
-  "description": "Visual Server Manager for Antigravity",
-  "version": "0.0.1",
+  "name": "antigravity-blueprint",
+  "displayName": "Antigravity IDE Blueprint",
+  "description": "Blueprint for Building Antigravity IDE Extensions",
+  "version": "1.0.0",
   "publisher": "antigravity",
   "engines": {
     "vscode": "^1.85.0"
@@ -13,26 +13,27 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "visual-server-sidebar-container",
-          "title": "Visual Server",
-          "icon": "resources/icons/server-icon.svg"
+          "id": "antigravity-sidebar-container",
+          "title": "Antigravity",
+          "icon": "src/app/features/activitybar_icon/assets/server-icon.svg"
         }
       ]
     },
     "views": {
-      "visual-server-sidebar-container": [
+      "antigravity-sidebar-container": [
         {
-          "id": "visual-server-view",
+          "id": "antigravity-sidebar-view",
           "name": "Antigravity Explorer",
-          "icon": "resources/icons/server-icon.svg"
+          "icon": "src/app/features/activitybar_icon/assets/server-icon.svg"
         }
       ]
     },
+
     "commands": [
       {
-        "command": "visualServer.openDashboard",
-        "title": "Visual Server: Abrir Dashboard",
-        "category": "Visual Server"
+        "command": "antigravity.openMainScreen",
+        "title": "Antigravity: Open Main Screen",
+        "category": "Antigravity"
       }
     ]
   },
@@ -60,3 +61,4 @@
     "typescript": "^5.3.0"
   }
 }
+
