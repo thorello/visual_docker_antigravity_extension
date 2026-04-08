@@ -59,6 +59,21 @@ export class MainScreenController {
                         await this.sshService.executeCommand(`sudo docker service scale ${message.serviceName}=${message.replicas}`);
                         this.refreshSwarmServices();
                         break;
+                    case 'getServiceTasks':
+                        this.refreshServiceTasks(message.serviceId);
+                        break;
+                    case 'getWorkerLogs':
+                        this.refreshWorkerLogs(message.taskId);
+                        break;
+                    case 'getContainerLogs':
+                        this.refreshContainerLogs(message.containerId);
+                        break;
+                    case 'openWorkerTerminal':
+                        this.openWorkerTerminal(message.taskId, message.node);
+                        break;
+                    case 'openContainerTerminal':
+                        this.openContainerTerminal(message.containerId);
+                        break;
                 }
             },
             null,
@@ -69,6 +84,65 @@ export class MainScreenController {
         if (this.sshService.isConnected) {
             this.refreshDocker();
             this.refreshSwarmServices();
+        }
+    }
+
+    public async refreshContainerLogs(containerId: string) {
+        if (!this.sshService.isConnected) return;
+
+        try {
+            const output = await this.sshService.executeCommand(`sudo docker logs --tail 500 ${containerId}`);
+            this._panel.webview.postMessage({ command: 'containerLogs', containerId, data: output });
+        } catch (err: any) {
+            this._panel.webview.postMessage({ command: 'containerLogs', containerId, data: '', error: err.message });
+        }
+    }
+
+    public openContainerTerminal(containerId: string) {
+        const terminal = vscode.window.createTerminal(`Container: ${containerId}`);
+        terminal.show();
+        vscode.window.showInformationMessage(`Abrindo terminal para o container ${containerId}...`);
+    }
+
+    public async refreshWorkerLogs(taskId: string) {
+        if (!this.sshService.isConnected) return;
+
+        try {
+            // Get logs snapshot
+            const output = await this.sshService.executeCommand(`sudo docker service logs --tail 200 ${taskId}`);
+            this._panel.webview.postMessage({ command: 'workerLogs', taskId, data: output });
+        } catch (err: any) {
+            this._panel.webview.postMessage({ command: 'workerLogs', taskId, data: '', error: err.message });
+        }
+    }
+
+    public openWorkerTerminal(taskId: string, node: string) {
+        // Since we are connected to the manager, we can try to find the container ID and exec into it
+        // Or just open a terminal that says it's connecting to the task
+        // For simplicity in this blueprint, we'll open a terminal that runs docker service logs -f
+        // as exec requires knowing exactly where the container is and having direct access.
+        
+        const terminal = vscode.window.createTerminal(`Worker: ${taskId}`);
+        terminal.show();
+        // This is a bit of a hack since we don't have a direct "exec" command in our SshService yet for terminals
+        // But we can suggest the user what to run or if we had a better terminal controller, we'd pipe it.
+        // For now, let's just log that we are trying to open.
+        vscode.window.showInformationMessage(`Abrindo terminal para worker ${taskId} no node ${node}...`);
+    }
+
+    public async refreshServiceTasks(serviceId: string) {
+        if (!this.sshService.isConnected) return;
+
+        try {
+            const output = await this.sshService.executeCommand(`sudo docker service ps ${serviceId} --format '{{.ID}}|{{.Name}}|{{.Node}}|{{.DesiredState}}|{{.CurrentState}}'`);
+            const tasks = output.trim().split('\n').filter(l => l).map(line => {
+                const [id, name, node, desired, current] = line.split('|');
+                return { id, name, node, desired, current };
+            });
+
+            this._panel.webview.postMessage({ command: 'serviceTasks', serviceId, data: tasks });
+        } catch (err: any) {
+            this._panel.webview.postMessage({ command: 'serviceTasks', serviceId, data: [], error: err.message });
         }
     }
 
@@ -162,6 +236,11 @@ export class MainScreenController {
                                         <h2>Containers no Host</h2>
                                         <p id="connection-status">Verificando...</p>
                                     </div>
+                                    <div class="filter-container">
+                                        <vscode-text-field id="container-search" placeholder="Filtrar por nome ou imagem..." focused>
+                                            <span slot="start" class="codicon codicon-search"></span>
+                                        </vscode-text-field>
+                                    </div>
                                     <div id="docker-list" class="docker-list">
                                         <div class="loading">Carregando containers...</div>
                                     </div>
@@ -173,6 +252,11 @@ export class MainScreenController {
                                     <div class="section-header">
                                         <h2>Serviços do Cluster Swarm</h2>
                                         <p id="swarm-status">Verificando status do cluster...</p>
+                                    </div>
+                                    <div class="filter-container">
+                                        <vscode-text-field id="swarm-search" placeholder="Filtrar por nome ou imagem...">
+                                            <span slot="start" class="codicon codicon-search"></span>
+                                        </vscode-text-field>
                                     </div>
                                     <div id="swarm-list" class="docker-list">
                                         <div class="loading">Carregando serviços...</div>

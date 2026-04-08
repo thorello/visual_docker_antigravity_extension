@@ -54,9 +54,20 @@ body {
 }
 
 .docker-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.filter-container {
+    margin-bottom: 1rem;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.filter-container vscode-text-field {
+    flex-grow: 1;
 }
 
 .docker-card {
@@ -68,6 +79,17 @@ body {
     justify-content: space-between;
     align-items: center;
     transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.docker-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
 }
 
 .docker-card:hover {
@@ -115,6 +137,136 @@ body {
 
 .status-other {
     background: rgba(200, 200, 200, 0.1);
+    opacity: 0.6;
+}
+
+.card-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.service-tasks {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.tasks-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    color: var(--text-color);
+}
+
+.tasks-table th {
+    text-align: left;
+    padding: 4px;
+    opacity: 0.6;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tasks-table td {
+    padding: 6px 4px;
+}
+
+.task-state {
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: rgba(128, 128, 128, 0.1);
+}
+
+.state-running {
+    color: var(--success);
+    font-weight: 600;
+}
+
+.task-row {
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.task-row:hover {
+    background: rgba(var(--vscode-button-background), 0.1);
+}
+
+.logs-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90vw;
+    height: 90vh;
+    background: var(--card-bg);
+    border: 1px solid var(--accent-color);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+}
+
+.logs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px;
+    background: var(--vscode-editor-background);
+    border-bottom: 2px solid var(--accent-color);
+    color: var(--text-color);
+    border-radius: 8px 8px 0 0;
+}
+
+.logs-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.logs-actions {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+#close-logs {
+    --button-icon-modifier: 1.5;
+}
+
+#close-logs:hover {
+    background: var(--vscode-errorForeground);
+    color: white;
+}
+
+#logs-content {
+    padding: 15px;
+    margin: 0;
+    font-family: var(--vscode-editor-font-family);
+    font-size: 0.8rem;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    flex-grow: 1;
+    background: #1e1e1e;
+    color: #d4d4d4;
+}
+
+.hidden {
+    display: none;
+}
+
+.expand-icon {
+    margin-left: 10px;
+    opacity: 0.5;
+    transition: transform 0.3s;
+}
+
+.loading-small, .error-small, .empty-small {
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 1rem;
     opacity: 0.6;
 }
 
