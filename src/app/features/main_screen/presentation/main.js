@@ -3,7 +3,9 @@ const vscode = acquireVsCodeApi();
 // DOM Elements
 const btnRefresh = document.getElementById('btn-refresh');
 const dockerList = document.getElementById('docker-list');
+const swarmList = document.getElementById('swarm-list');
 const connectionStatus = document.getElementById('connection-status');
+const swarmStatus = document.getElementById('swarm-status');
 
 // Message Listener
 window.addEventListener('message', event => {
@@ -11,6 +13,9 @@ window.addEventListener('message', event => {
     switch (message.command) {
         case 'dockerList':
             renderDockerList(message.data, message.error);
+            break;
+        case 'swarmList':
+            renderSwarmList(message.data, message.error);
             break;
     }
 });
@@ -53,17 +58,68 @@ function renderDockerList(containers, error) {
 
     // Add event listeners to buttons
     document.querySelectorAll('.btn-stop').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.onclick = () => {
             const id = btn.getAttribute('data-id');
             vscode.postMessage({ command: 'stopContainer', containerId: id });
-        });
+        };
     });
 
     document.querySelectorAll('.btn-start').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.onclick = () => {
             const id = btn.getAttribute('data-id');
             vscode.postMessage({ command: 'startContainer', containerId: id });
-        });
+        };
+    });
+}
+
+function renderSwarmList(services, error) {
+    if (error) {
+        swarmStatus.innerText = `Erro: ${error}`;
+        swarmStatus.style.color = 'var(--vscode-errorForeground)';
+        swarmList.innerHTML = `<div class="error-state">Falha ao obter serviços Swarm: ${error}</div>`;
+        return;
+    }
+
+    swarmStatus.innerText = services.length > 0 ? 'Cluster ativo' : 'Sem serviços ativos no cluster';
+    swarmStatus.style.color = 'var(--vscode-charts-blue)';
+
+    if (services.length === 0) {
+        swarmList.innerHTML = '<div class="empty-state">Este servidor não parece ser um Swarm manager ou não possui serviços.</div>';
+        return;
+    }
+
+    swarmList.innerHTML = services.map(service => {
+        const [current, target] = service.replicas.split('/');
+        const isHealthy = current === target;
+        
+        return `
+        <div class="docker-card service-card">
+            <div class="card-info">
+                <span class="container-name">${service.name}</span>
+                <span class="container-image">${service.image}</span>
+                <div class="service-meta">
+                    <span class="container-status ${isHealthy ? 'status-up' : 'status-down'}">${service.replicas} Replicas</span>
+                    <span class="mode-tag">${service.mode}</span>
+                </div>
+            </div>
+            <div class="card-actions">
+                <vscode-button appearance="icon" title="Escalar" class="btn-scale" data-name="${service.name}" data-current="${current}">
+                    <span class="codicon codicon-unfold"></span>
+                </vscode-button>
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    document.querySelectorAll('.btn-scale').forEach(btn => {
+        btn.onclick = () => {
+            const name = btn.getAttribute('data-name');
+            const current = btn.getAttribute('data-current');
+            const replicas = prompt(`Escalar serviço ${name} para quantas réplicas?`, current);
+            if (replicas !== null) {
+                vscode.postMessage({ command: 'scaleService', serviceName: name, replicas: parseInt(replicas) });
+            }
+        };
     });
 }
 
@@ -77,9 +133,12 @@ function getStatusClass(status) {
 if (btnRefresh) {
     btnRefresh.addEventListener('click', () => {
         dockerList.innerHTML = '<div class="loading">Atualizando...</div>';
+        swarmList.innerHTML = '<div class="loading">Atualizando...</div>';
         vscode.postMessage({ command: 'refreshDocker' });
+        vscode.postMessage({ command: 'refreshSwarm' });
     });
 }
 
 // Initial request
 vscode.postMessage({ command: 'refreshDocker' });
+vscode.postMessage({ command: 'refreshSwarm' });

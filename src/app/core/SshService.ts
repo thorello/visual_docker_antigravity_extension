@@ -300,6 +300,8 @@ export class SshService {
             if (this.isMock) {
                 if (command.includes('docker ps')) {
                     resolve("id1|nginx:latest|Up 2 hours|web-server\nid2|postgres:13|Up 5 hours|db-prod\nid3|redis:alpine|Exited (0) 1 day ago|cache");
+                } else if (command.includes('docker service ls')) {
+                    resolve("sid1|api-gateway|replicated|3/3|my-api:v1\nsid2|worker-node|replicated|1/2|my-worker:latest\nsid3|monitoring|global|1/1|prometheus:latest");
                 } else {
                     resolve(`Comando mock executado: ${command}`);
                 }
