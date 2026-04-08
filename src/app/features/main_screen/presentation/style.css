@@ -1,0 +1,43 @@
+:root {
+    --bg-color: var(--vscode-sideBar-background);
+    --text-color: var(--vscode-foreground);
+    --button-bg: var(--vscode-button-background);
+    --button-fg: var(--vscode-button-foreground);
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: var(--vscode-font-family);
+    padding: 20px;
+    margin: 0;
+}
+
+.main-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+h1 {
+    color: var(--vscode-symbolIcon-propertyForeground);
+    font-size: 1.5rem;
+}
+
+#response-container {
+    margin-top: 1rem;
+    padding: 10px;
+    background: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+#response-container p {
+    margin: 4px 0;
+    font-family: var(--vscode-editor-font-family);
+    font-size: 0.9rem;
+}

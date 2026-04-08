@@ -1,52 +1,77 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.activate = activate;
 exports.deactivate = deactivate;
-const vscode = require("vscode");
-const VisualServerExplorerProvider_1 = require("./core/VisualServerExplorerProvider");
-const VisualServerPanel_1 = require("./core/VisualServerPanel");
-const SshFileSystemProvider_1 = require("./core/SshFileSystemProvider");
-const storageService_1 = require("./services/storageService");
+const vscode = __importStar(require("vscode"));
+const SidebarController_1 = require("./app/features/sidebar/logic/SidebarController");
+const MainScreenController_1 = require("./app/features/main_screen/logic/MainScreenController");
+const FileSystemProvider_1 = require("./app/core/FileSystemProvider");
+const StorageService_1 = require("./app/core/StorageService");
 function activate(context) {
-    console.log('Visual Server Extension is active!');
-    const storageService = new storageService_1.StorageService(context);
-    const fsProvider = new SshFileSystemProvider_1.SshFileSystemProvider(context, storageService);
-    vscode.workspace.registerFileSystemProvider('visual-ssh', fsProvider, { isCaseSensitive: true });
-    const provider = new VisualServerExplorerProvider_1.VisualServerExplorerProvider(context.extensionUri);
-    const treeView = vscode.window.createTreeView('visual-server-view', {
-        treeDataProvider: provider,
+    console.log('Antigravity Extension Blueprint is active!');
+    const storageService = new StorageService_1.StorageService(context);
+    const fsProvider = new FileSystemProvider_1.FileSystemProvider(context, storageService);
+    vscode.workspace.registerFileSystemProvider('antigravity-fs', fsProvider, { isCaseSensitive: true });
+    const sidebarController = new SidebarController_1.SidebarController(context.extensionUri);
+    const treeView = vscode.window.createTreeView('antigravity-sidebar-view', {
+        treeDataProvider: sidebarController,
         showCollapseAll: true
     });
-    // Automatiza abertura do Dashboard ao focar na sidebar
-    treeView.onDidChangeVisibility(e => {
+    // Auto-open Main Screen when sidebar is focused
+    treeView.onDidChangeVisibility((e) => {
         if (e.visible) {
-            vscode.commands.executeCommand('visualServer.openDashboard');
+            vscode.commands.executeCommand('antigravity.openMainScreen');
         }
     });
     context.subscriptions.push(treeView);
-    let openDashboardCommand = vscode.commands.registerCommand('visualServer.openDashboard', () => {
-        VisualServerPanel_1.VisualServerPanel.createOrShow(context.extensionUri, context);
+    let openMainScreenCommand = vscode.commands.registerCommand('antigravity.openMainScreen', () => {
+        MainScreenController_1.MainScreenController.createOrShow(context.extensionUri, context);
     });
-    let openInExplorerCommand = vscode.commands.registerCommand('visualServer.openInExplorer', (serverId) => {
-        const uri = vscode.Uri.parse(`visual-ssh://${serverId}/`);
-        vscode.workspace.updateWorkspaceFolders(vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders.length : 0, 0, {
-            uri,
-            name: `SSH: ${serverId}`
-        });
-    });
-    // Sincronização: Panel comunica ao Provider quando mudar o servidor ativo
-    let serverConnectedCmd = vscode.commands.registerCommand('visualServer.onServerConnected', (config) => {
-        if (VisualServerPanel_1.VisualServerPanel.currentPanel) {
-            const sshService = VisualServerPanel_1.VisualServerPanel.currentPanel.getSshService(config.id);
-            if (sshService) {
-                provider.updateActiveServer(config, sshService);
-            }
+    context.subscriptions.push(openMainScreenCommand);
+    // Generic communication commands
+    let onConnectedCmd = vscode.commands.registerCommand('antigravity.onConnected', (config) => {
+        if (MainScreenController_1.MainScreenController.currentPanel) {
+            // Logic for when something connects
+            sidebarController.refresh();
         }
     });
-    let serverDisconnectedCmd = vscode.commands.registerCommand('visualServer.onServerDisconnected', (serverId) => {
-        provider.clearActiveServer();
+    let onDisconnectedCmd = vscode.commands.registerCommand('antigravity.onDisconnected', () => {
+        sidebarController.refresh();
     });
-    context.subscriptions.push(openDashboardCommand, openInExplorerCommand, serverConnectedCmd, serverDisconnectedCmd);
+    context.subscriptions.push(onConnectedCmd, onDisconnectedCmd);
 }
 function deactivate() { }
 //# sourceMappingURL=extension.js.map
