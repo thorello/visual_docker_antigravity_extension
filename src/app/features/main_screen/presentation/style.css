@@ -118,6 +118,36 @@ body {
     opacity: 0.6;
 }
 
+vscode-panels {
+    width: 100%;
+}
+
+vscode-panel-tab {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding: 10px 20px;
+}
+
+.service-meta {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.mode-tag {
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    text-transform: uppercase;
+}
+
+.service-card {
+    border-left: 4px solid var(--vscode-charts-blue);
+}
+
 .loading, .empty-state, .error-state {
     grid-column: 1 / -1;
     text-align: center;
@@ -125,6 +155,7 @@ body {
     opacity: 0.6;
     border: 1px dashed var(--border-color);
     border-radius: 8px;
+    background: rgba(0,0,0,0.05);
 }
 
 .error-state {

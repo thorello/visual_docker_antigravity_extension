@@ -41,11 +41,11 @@ export class MainScreenController {
         this._panel.webview.onDidReceiveMessage(
             async (message: any) => {
                 switch (message.command) {
-                    case 'ping':
-                        this._panel.webview.postMessage({ command: 'pong', data: 'Hello from Antigravity Backend!' });
-                        break;
                     case 'refreshDocker':
                         this.refreshDocker();
+                        break;
+                    case 'refreshSwarm':
+                        this.refreshSwarmServices();
                         break;
                     case 'stopContainer':
                         await this.sshService.executeCommand(`sudo docker stop ${message.containerId}`);
@@ -55,15 +55,20 @@ export class MainScreenController {
                         await this.sshService.executeCommand(`sudo docker start ${message.containerId}`);
                         this.refreshDocker();
                         break;
+                    case 'scaleService':
+                        await this.sshService.executeCommand(`sudo docker service scale ${message.serviceName}=${message.replicas}`);
+                        this.refreshSwarmServices();
+                        break;
                 }
             },
             null,
             this._disposables
         );
 
-        // Auto refresh docker on start if connected
+        // Auto refresh on start if connected
         if (this.sshService.isConnected) {
             this.refreshDocker();
+            this.refreshSwarmServices();
         }
     }
 
@@ -74,7 +79,6 @@ export class MainScreenController {
         }
 
         try {
-            // Get docker processes using sudo
             const output = await this.sshService.executeCommand("sudo docker ps -a --format '{{.ID}}|{{.Image}}|{{.Status}}|{{.Names}}'");
             const containers = output.trim().split('\n').filter(l => l).map(line => {
                 const [id, image, status, name] = line.split('|');
@@ -84,6 +88,25 @@ export class MainScreenController {
             this._panel.webview.postMessage({ command: 'dockerList', data: containers });
         } catch (err: any) {
             this._panel.webview.postMessage({ command: 'dockerList', data: [], error: err.message });
+        }
+    }
+
+    public async refreshSwarmServices() {
+        if (!this.sshService.isConnected) {
+            this._panel.webview.postMessage({ command: 'swarmList', data: [], error: 'Não conectado ao servidor' });
+            return;
+        }
+
+        try {
+            const output = await this.sshService.executeCommand("sudo docker service ls --format '{{.ID}}|{{.Name}}|{{.Mode}}|{{.Replicas}}|{{.Image}}'");
+            const services = output.trim().split('\n').filter(l => l).map(line => {
+                const [id, name, mode, replicas, image] = line.split('|');
+                return { id, name, mode, replicas, image };
+            });
+
+            this._panel.webview.postMessage({ command: 'swarmList', data: services });
+        } catch (err: any) {
+            this._panel.webview.postMessage({ command: 'swarmList', data: [], error: err.message });
         }
     }
 
@@ -129,16 +152,34 @@ export class MainScreenController {
                     </header>
                     
                     <div class="main-content">
-                        <section class="docker-section">
-                            <div class="section-header">
-                                <h2>Containers Ativos</h2>
-                                <p id="connection-status">Verificando conexão...</p>
-                            </div>
+                        <vscode-panels activeid="tab-containers">
+                            <vscode-panel-tab id="tab-containers">CONTAINERS</vscode-panel-tab>
+                            <vscode-panel-tab id="tab-swarm">SERVIÇOS (SWARM)</vscode-panel-tab>
                             
-                            <div id="docker-list" class="docker-list">
-                                <div class="loading">Carregando containers...</div>
-                            </div>
-                        </section>
+                            <vscode-panel-view id="view-containers">
+                                <section class="docker-section">
+                                    <div class="section-header">
+                                        <h2>Containers no Host</h2>
+                                        <p id="connection-status">Verificando...</p>
+                                    </div>
+                                    <div id="docker-list" class="docker-list">
+                                        <div class="loading">Carregando containers...</div>
+                                    </div>
+                                </section>
+                            </vscode-panel-view>
+                            
+                            <vscode-panel-view id="view-swarm">
+                                <section class="docker-section">
+                                    <div class="section-header">
+                                        <h2>Serviços do Cluster Swarm</h2>
+                                        <p id="swarm-status">Verificando status do cluster...</p>
+                                    </div>
+                                    <div id="swarm-list" class="docker-list">
+                                        <div class="loading">Carregando serviços...</div>
+                                    </div>
+                                </section>
+                            </vscode-panel-view>
+                        </vscode-panels>
                     </div>
                 </div>
                 <script src="${scriptUri}"></script>
