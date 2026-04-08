@@ -25,7 +25,7 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     let openMainScreenCommand = vscode.commands.registerCommand('antigravity.openMainScreen', () => {
-        MainScreenController.createOrShow(context.extensionUri, context);
+        MainScreenController.createOrShow(context.extensionUri, context, sshService);
     });
 
     // Generic communication commands
