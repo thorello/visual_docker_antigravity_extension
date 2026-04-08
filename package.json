@@ -22,13 +22,13 @@
     "views": {
       "antigravity-sidebar-container": [
         {
+          "type": "webview",
           "id": "antigravity-sidebar-view",
           "name": "Antigravity Explorer",
           "icon": "src/app/features/activitybar_icon/assets/server-icon.svg"
         }
       ]
     },
-
     "commands": [
       {
         "command": "antigravity.openMainScreen",
@@ -47,6 +47,7 @@
     "package": "vsce package"
   },
   "dependencies": {
+    "@vscode/codicons": "^0.0.45",
     "@vscode/webview-ui-toolkit": "^1.4.0",
     "ssh2": "^1.15.0"
   },
@@ -61,4 +62,3 @@
     "typescript": "^5.3.0"
   }
 }
-
