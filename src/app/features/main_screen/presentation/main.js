@@ -113,21 +113,23 @@ function renderDockerList(containers, error) {
     }
 
     dockerList.innerHTML = containers.map(container => `
-        <div class="docker-card" data-id="${container.id}">
-            <div class="card-info">
-                <span class="container-name">${container.name}</span>
-                <span class="container-image">${container.image}</span>
-                <span class="container-status ${getStatusClass(container.status)}">${container.status}</span>
-            </div>
-            <div class="card-actions">
-                ${container.status.includes('Up') 
-                    ? `<vscode-button appearance="icon" title="Parar" class="btn-stop" data-id="${container.id}">
-                        <span class="codicon codicon-debug-stop"></span>
-                       </vscode-button>`
-                    : `<vscode-button appearance="icon" title="Iniciar" class="btn-start" data-id="${container.id}">
-                        <span class="codicon codicon-debug-start"></span>
-                       </vscode-button>`
-                }
+        <div class="docker-card container-card" data-id="${container.id}">
+            <div class="card-main">
+                <div class="card-info">
+                    <span class="container-name">${container.name}</span>
+                    <span class="container-image">${container.image}</span>
+                    <span class="status-pill container-status ${getStatusClass(container.status)}">${container.status}</span>
+                </div>
+                <div class="card-actions">
+                    ${container.status.includes('Up') 
+                        ? `<vscode-button appearance="icon" title="Parar" class="btn-stop" data-id="${container.id}">
+                            <span class="codicon codicon-debug-stop"></span>
+                           </vscode-button>`
+                        : `<vscode-button appearance="icon" title="Iniciar" class="btn-start" data-id="${container.id}">
+                            <span class="codicon codicon-debug-start"></span>
+                           </vscode-button>`
+                    }
+                </div>
             </div>
         </div>
     `).join('');
@@ -180,7 +182,7 @@ function renderSwarmList(services, error) {
                     <span class="container-name">${service.name}</span>
                     <span class="container-image">${service.image}</span>
                     <div class="service-meta">
-                        <span class="container-status ${isHealthy ? 'status-up' : 'status-down'}">${service.replicas} Replicas</span>
+                        <span class="status-pill container-status ${isHealthy ? 'status-up' : 'status-down'}">${service.replicas} Replicas</span>
                         <span class="mode-tag">${service.mode}</span>
                     </div>
                 </div>
@@ -237,7 +239,7 @@ function renderServiceTasks(serviceId, tasks, error) {
                 </div>
                 <div class="worker-status-line">
                     <span class="task-state ${task.current.includes('Running') ? 'state-running' : 'state-pending'}">${task.current}</span>
-                    <span class="task-desired">Alvo: ${task.desired}</span>
+                    <span class="task-desired" style="opacity: 0.6;">Alvo: ${task.desired}</span>
                 </div>
             </div>
             <div class="worker-actions">
@@ -324,7 +326,7 @@ function renderRecentList(recent) {
             <div class="card-info">
                 <span class="container-name">${item.name}</span>
                 <span class="server-badge"><span class="codicon codicon-link"></span> ${item.serverLabel || 'Desconhecido'}</span>
-                <div class="meta-row">
+                <div class="service-meta" style="margin-top: 8px;">
                     <span class="type-tag">${item.type === 'container' ? 'Container' : 'Worker'}</span>
                     ${item.node ? `<span class="worker-node"><span class="codicon codicon-server"></span> ${item.node}</span>` : ''}
                 </div>
@@ -334,6 +336,7 @@ function renderRecentList(recent) {
             </div>
         </div>
     `).join('');
+
 
     document.querySelectorAll('.recent-card').forEach(card => {
         card.onclick = () => {

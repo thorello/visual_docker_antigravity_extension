@@ -1,40 +1,55 @@
 :root {
     --bg-color: var(--vscode-sideBar-background);
-    --card-bg: var(--vscode-editor-background);
+    --card-bg: rgba(30, 30, 31, 0.6);
+    --card-hover-bg: rgba(45, 45, 48, 0.8);
     --text-color: var(--vscode-foreground);
-    --border-color: var(--vscode-widget-border);
-    --accent-color: var(--vscode-button-background);
-    --success: var(--vscode-charts-green);
-    --error: var(--vscode-errorForeground);
+    --text-muted: var(--vscode-descriptionForeground);
+    --border-color: rgba(255, 255, 255, 0.08);
+    --accent-color: #007acc;
+    --accent-gradient: linear-gradient(135deg, #007acc 0%, #005a9e 100%);
+    --success: #4ec9b0;
+    --error: #f48771;
+    --warning: #cca700;
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --radius-lg: 12px;
+    --radius-md: 8px;
+    --radius-sm: 4px;
 }
 
 body {
     background-color: var(--bg-color);
     color: var(--text-color);
-    font-family: var(--vscode-font-family);
+    font-family: 'Segoe UI', 'Inter', var(--vscode-font-family);
     padding: 0;
     margin: 0;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
 }
 
 .main-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 2rem;
-    background: var(--card-bg);
+    padding: 1.25rem 1.5rem;
+    background: rgba(25, 25, 26, 0.85);
+    backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .main-header h1 {
     margin: 0;
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: var(--vscode-symbolIcon-interfaceForeground);
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-color);
 }
 
 .main-content {
-    padding: 1rem 1rem;
+    padding: 1.5rem;
 }
 
 .section-header {
@@ -43,34 +58,48 @@ body {
 
 .section-header h2 {
     margin: 0 0 0.5rem 0;
-    font-size: 1rem;
-    opacity: 0.9;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
 }
 
 #connection-status {
     margin: 0;
-    font-size: 0.85rem;
-    opacity: 0.7;
+    font-size: 0.75rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#connection-status::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 10px currentColor;
 }
 
 .docker-list {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 1rem;
 }
 
 .recent-grid {
     display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1rem;
-    padding-bottom: 2rem;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+    padding-bottom: 2.5rem;
 }
 
-
 .filter-container {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: center;
 }
 
@@ -78,110 +107,183 @@ body {
     flex-grow: 1;
 }
 
+/* Card Base Modernizado */
 .docker-card {
     background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.docker-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1rem;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
     display: flex;
     flex-direction: column;
-    transition: transform 0.2s, box-shadow 0.2s;
+    gap: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+}
+
+.docker-card::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: transparent;
+    transition: background 0.3s;
 }
 
 .docker-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    border-color: var(--accent-color);
-}
-
-.card-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.container-name {
-    font-weight: 600;
-    font-size: 1rem;
-}
-
-.container-image {
-    font-size: 0.8rem;
-    opacity: 0.6;
-    font-family: var(--vscode-editor-font-family);
-}
-
-.container-status {
-    font-size: 0.75rem;
-    padding: 2px 8px;
-    border-radius: 10px;
-    width: fit-content;
-    margin-top: 4px;
-}
-
-.status-up {
-    background: rgba(137, 209, 133, 0.1);
-    color: var(--success);
-    border: 1px solid var(--success);
-}
-
-.status-down {
-    background: rgba(244, 135, 135, 0.1);
-    color: var(--error);
-    border: 1px solid var(--error);
-}
-
-.status-other {
-    background: rgba(200, 200, 200, 0.1);
-    opacity: 0.6;
+    background: var(--card-hover-bg);
+    transform: translateY(-4px);
+    box-shadow: var(--card-shadow);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 .card-main {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     width: 100%;
 }
 
+.card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.container-name {
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.container-image {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.7;
+}
+
+/* Status Pills */
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    width: fit-content;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 4px;
+}
+
+.container-status.status-up {
+    background: rgba(78, 201, 176, 0.12);
+    color: var(--success);
+    border: 1px solid rgba(78, 201, 176, 0.2);
+}
+
+.container-status.status-up::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+}
+
+.container-status.status-down {
+    background: rgba(244, 135, 113, 0.12);
+    color: var(--error);
+    border: 1px solid rgba(244, 135, 113, 0.2);
+}
+
+.container-status.status-down::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--error);
+}
+
+/* Container Specific Decoration */
+.container-card::after {
+    background: var(--accent-color);
+}
+
+/* Service Specific Decoration */
+.service-card::after {
+    background: #c586c0;
+}
+
+.mode-tag {
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(197, 134, 192, 0.15);
+    color: #c586c0;
+    text-transform: uppercase;
+    border: 1px solid rgba(197, 134, 192, 0.2);
+}
+
+.service-meta {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 6px;
+}
+
+/* Workers / Tasks Section */
 .service-tasks {
-    margin-top: 1rem;
+    margin-top: 0.5rem;
     padding-top: 1rem;
     border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    animation: fadeInSlide 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@keyframes fadeInSlide {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .worker-row {
-    background: rgba(var(--vscode-editor-background), 0.3);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 0.75rem;
-    margin-bottom: 0.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-md);
+    padding: 1rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    transition: background 0.2s;
+    transition: all 0.25s;
 }
 
 .worker-row:hover {
-    background: rgba(var(--vscode-button-background), 0.1);
-    border-color: var(--accent-color);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateX(6px);
 }
 
 .worker-info {
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 6px;
     flex-grow: 1;
 }
 
@@ -194,34 +296,35 @@ body {
 .worker-id {
     font-weight: 600;
     font-size: 0.9rem;
-    color: var(--text-color);
+    color: #f0f0f0;
 }
 
 .worker-node {
-    font-size: 0.75rem;
-    opacity: 0.6;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 3px 8px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
+    font-weight: 500;
 }
 
 .worker-status-line {
     display: flex;
-    gap: 15px;
+    gap: 16px;
     font-size: 0.75rem;
-}
-
-.state-pending {
-    color: var(--vscode-charts-orange);
-    font-style: italic;
-}
-
-.task-state {
-    font-weight: 600;
 }
 
 .state-running {
     color: var(--success);
+    font-weight: 700;
+}
+
+.state-pending {
+    color: var(--warning);
+    font-style: italic;
 }
 
 .worker-actions {
@@ -229,255 +332,140 @@ body {
     gap: 8px;
 }
 
-.task-row {
-    cursor: pointer;
-    transition: background 0.2s;
+/* Recent Cards */
+.recent-card {
+    background: linear-gradient(145deg, rgba(45, 45, 48, 0.6) 0%, rgba(209, 134, 22, 0.05) 100%);
 }
 
-.task-row:hover {
-    background: rgba(var(--vscode-button-background), 0.1);
+.recent-card::after {
+    background: #d18616;
 }
 
+.recent-card .codicon-history {
+    opacity: 0.2;
+    font-size: 1.8rem;
+    position: absolute;
+    right: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: all 0.4s ease;
+}
+
+.recent-card:hover .codicon-history {
+    opacity: 0.8;
+    transform: translateY(-50%) scale(1.1) rotate(-10deg);
+    color: #d18616;
+}
+
+.server-badge {
+    font-size: 0.7rem;
+    color: #4daafc;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0;
+    font-weight: 600;
+}
+
+.type-tag {
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #e0e0e0;
+    text-transform: uppercase;
+}
+
+/* Logs Terminal Styling */
 .logs-section {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 200px);
+    height: calc(100vh - 250px);
+    background: #121214;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--border-color);
 }
 
 .logs-header-inline {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 0.8rem;
+    padding: 1rem 1.5rem;
+    background: rgba(255, 255, 255, 0.03);
     border-bottom: 1px solid var(--border-color);
-    width: 100%;
-}
-
-.logs-title-group {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex-grow: 1;
-    min-width: 0;
 }
 
 .logs-title-group h2 {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
+    font-weight: 800;
     color: var(--accent-color);
-    white-space: nowrap;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-#logs-filter {
-    max-width: 300px;
-    width: 100%;
-}
-
-.logs-actions {
-    display: flex;
-    gap: 4px;
-    margin-left: 1rem;
-    flex-shrink: 0;
-}
-
-.logs-actions vscode-button {
-    height: 28px;
-    width: 28px;
-    color: var(--vscode-foreground);
-    opacity: 0.8;
-}
-
-.logs-actions vscode-button:hover {
-    opacity: 1;
-    background: var(--vscode-button-secondaryHoverBackground);
-    color: var(--accent-color);
-}
-
-.logs-actions .codicon {
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#btn-clear-logs:hover {
-    color: var(--error);
-}
-
-.logs-section.maximized {
-    position: fixed;
-    top: 5px;
-    left: 5px;
-    right: 5px;
-    bottom: 5px;
-    background: var(--bg-color);
-    z-index: 10000;
-    padding: 1.5rem;
-    border: 1px solid var(--accent-color);
-    border-radius: 4px;
-    box-shadow: 0 0 50px rgba(0,0,0,0.9);
-    height: auto;
-    display: flex;
-    flex-direction: column;
-}
-
-.maximized .logs-terminal-container {
-    height: calc(100% - 60px);
+    letter-spacing: 0.1em;
 }
 
 .logs-terminal-container {
     flex-grow: 1;
-    background: #0d0d0d;
-    border-radius: 6px;
-    border: 1px solid var(--border-color);
+    background: #0a0a0c;
+    margin: 1.25rem;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255,255,255,0.05);
+    box-shadow: inset 0 4px 20px rgba(0,0,0,0.6);
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
 }
 
 #logs-content {
-    padding: 1rem;
-    margin: 0;
-    font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+    padding: 1.5rem;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
     font-size: 0.85rem;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    flex-grow: 1;
+    line-height: 1.6;
     color: #e0e0e0;
-    line-height: 1.4;
 }
 
-.loading-small, .error-small, .empty-small {
-    font-size: 0.8rem;
-    text-align: center;
-    padding: 1rem;
-    opacity: 0.6;
-}
-
-vscode-panels {
-    width: 100%;
-}
-
-.hidden {
-    display: none;
-}
-
-.expand-icon {
-    margin-left: 10px;
-    opacity: 0.5;
-    transition: transform 0.3s;
-}
-
-vscode-panel-tab {
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    padding: 10px 20px;
-}
-
-.service-meta {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    margin-top: 4px;
-}
-
-.mode-tag {
-    font-size: 0.7rem;
-    padding: 1px 6px;
-    border-radius: 4px;
-    background: var(--vscode-badge-background);
-    color: var(--vscode-badge-foreground);
-    text-transform: uppercase;
-}
-
-.service-card {
-    border-left: 4px solid var(--vscode-charts-blue);
-}
-
+/* Generic States */
 .loading, .empty-state, .error-state {
     grid-column: 1 / -1;
     text-align: center;
-    padding: 3rem;
-    opacity: 0.6;
+    padding: 5rem 2rem;
+    border-radius: var(--radius-lg);
+    background: rgba(255,255,255,0.02);
     border: 1px dashed var(--border-color);
-    border-radius: 8px;
-    background: rgba(0,0,0,0.05);
+    color: var(--text-muted);
 }
 
-.error-state {
-    color: var(--error);
-    border-color: var(--error);
-    opacity: 1;
+.hidden { display: none !important; }
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
 }
 
-.recent-card {
-    border-left: 4px solid var(--vscode-charts-orange) !important;
-    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(var(--vscode-button-background), 0.05) 100%);
+::-webkit-scrollbar-track {
+    background: transparent;
 }
 
-.recent-card .codicon-history {
-    opacity: 0.2;
-    font-size: 1.5rem;
-    position: absolute;
-    right: 15px;
-    top: 50%;
-    transform: translateY(-50%);
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
 }
 
-.recent-card .card-info {
-    position: relative;
-    padding-right: 30px;
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
 }
 
-.server-badge {
-    font-size: 0.75rem;
-    color: var(--vscode-charts-blue);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin: 2px 0;
-}
-
-.meta-row {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    margin-top: 4px;
-}
-
-.type-tag {
-    font-size: 0.65rem;
-    padding: 1px 6px;
-    border-radius: 4px;
-    background: rgba(var(--vscode-button-background), 0.1);
-    color: var(--text-color);
+vscode-panel-tab {
     text-transform: uppercase;
-    opacity: 0.8;
+    letter-spacing: 0.12em;
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 12px 24px;
+    opacity: 0.7;
 }
 
-.disconnected-recent:hover {
-    border-color: var(--vscode-charts-orange) !important;
-}
-
-.disconnected-recent::after {
-    content: "CONECTAR";
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    font-size: 0.6rem;
-    background: var(--vscode-charts-orange);
-    color: white;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: bold;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.disconnected-recent:hover::after {
+vscode-panel-tab[aria-selected="true"] {
     opacity: 1;
+    color: var(--accent-color);
 }
-
