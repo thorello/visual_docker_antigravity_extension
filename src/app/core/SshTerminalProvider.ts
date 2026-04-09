@@ -16,37 +16,37 @@ export class SshTerminalProvider implements vscode.Pseudoterminal {
     ) {}
 
     open(initialDimensions: vscode.TerminalDimensions | undefined): void {
-        this.sshService.startShell(
-            (data: string) => {
-                this.writeEmitter.fire(data);
-            },
-            () => {
-                this.closeEmitter.fire(0);
-            }
-        ).then(stream => {
-            this.shellStream = stream;
-            // Sempre dar sudo su primeiro como pedido pelo usuário
-            setTimeout(() => {
-                if (this.shellStream && this.shellStream.write) {
-                    this.shellStream.write('sudo su\n');
-                    
-                    if (this.initialCommand) {
-                        // Esperamos tempo suficiente para o sudo su ser processado (tempo aumentado para estabilidade)
-                        setTimeout(() => {
-                            // Limpa a linha caso haja algum eco ou resíduo
-                            this.shellStream.write('\u0003\n');
-                            setTimeout(() => {
-                                // Comando simples agora, o ID é resolvido no backend
-                                this.shellStream.write(`${this.initialCommand}\n`);
-                            }, 500);
-                        }, 3500);
+        if (this.initialCommand) {
+            // Usa exec com PTY: o comando vai direto ao kernel do servidor, sem shell interativo.
+            // Isso elimina completamente o problema de mangling de caracteres em strings longas.
+            const cmd = `sudo su -c '${this.initialCommand.replace(/'/g, "'\\''")}'`;
+            
+            this.sshService.startExec(cmd,
+                (data: string) => { this.writeEmitter.fire(data); },
+                () => { this.closeEmitter.fire(0); }
+            ).then(stream => {
+                this.shellStream = stream;
+            }).catch(err => {
+                this.writeEmitter.fire(`\r\nErro ao abrir terminal: ${err.message}\r\n`);
+                this.closeEmitter.fire(1);
+            });
+        } else {
+            // Sem comando inicial: abre shell interativo normal com sudo su
+            this.sshService.startShell(
+                (data: string) => { this.writeEmitter.fire(data); },
+                () => { this.closeEmitter.fire(0); }
+            ).then(stream => {
+                this.shellStream = stream;
+                setTimeout(() => {
+                    if (this.shellStream && this.shellStream.write) {
+                        this.shellStream.write('sudo su\n');
                     }
-                }
-            }, 1000);
-        }).catch(err => {
-            this.writeEmitter.fire(`\r\nErro ao abrir shell: ${err.message}\r\n`);
-            this.closeEmitter.fire(1);
-        });
+                }, 1000);
+            }).catch(err => {
+                this.writeEmitter.fire(`\r\nErro ao abrir shell: ${err.message}\r\n`);
+                this.closeEmitter.fire(1);
+            });
+        }
     }
 
     close(): void {

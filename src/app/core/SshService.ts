@@ -12,7 +12,9 @@ export class SshService {
     private isMock: boolean = false;
     private _isWsl: boolean = false;
 
+    public configId: string = '';
     public serverLabel: string = 'Remote Server';
+
 
     get isConnected(): boolean {
         return this.client !== null || this._isWsl || this.isMock;
@@ -22,8 +24,10 @@ export class SshService {
         return this._isWsl;
     }
 
-    public async connect(config: ConnectConfig & { isWsl?: boolean, wslDistro?: string, isMock?: boolean, label?: string }): Promise<void> {
+    public async connect(config: ConnectConfig & { id?: string, isWsl?: boolean, wslDistro?: string, isMock?: boolean, label?: string }): Promise<void> {
+        this.configId = config.id || 'default';
         this.serverLabel = config.label || config.host || 'Remote Server';
+
         return new Promise((resolve, reject) => {
             if (config.isMock) {
                 this.isMock = true;
@@ -298,8 +302,35 @@ export class SshService {
         });
     }
 
+    /**
+     * Abre um canal exec com PTY alocado.
+     * Diferente do startShell, passa o comando diretamente ao servidor sem shell interativo,
+     * eliminando o problema de mangling de caracteres em strings longas.
+     */
+    public async startExec(command: string, onData: (data: string) => void, onExit: () => void): Promise<any> {
+        if (this.isMock || this._isWsl) {
+            const stream = await this.startShell(onData, onExit);
+            setTimeout(() => { stream.write(command + '\n'); }, 1000);
+            return stream;
+        }
+        if (!this.client) throw new Error('Not connected');
+
+        return new Promise((resolve, reject) => {
+            // { pty: true } aloca PTY; o comando vai direto, sem shell interativo
+            this.client!.exec(command, { pty: true }, (err, stream) => {
+                if (err) return reject(err);
+                stream.on('data', (data: Buffer) => onData(data.toString()));
+                stream.stderr.on('data', (data: Buffer) => onData(data.toString()));
+                stream.on('close', () => onExit());
+                resolve(stream);
+            });
+        });
+    }
+
+
     public async executeCommand(command: string): Promise<string> {
         return new Promise((resolve, reject) => {
+
             if (this.isMock) {
                 if (command.includes('docker ps')) {
                     resolve("id1|nginx:latest|Up 2 hours|web-server\nid2|postgres:13|Up 5 hours|db-prod\nid3|redis:alpine|Exited (0) 1 day ago|cache");

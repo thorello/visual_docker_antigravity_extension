@@ -15,6 +15,7 @@ export class MainScreenController {
             MainScreenController.currentPanel._panel.reveal(vscode.ViewColumn.One);
             // Refresh when showing
             MainScreenController.currentPanel.refreshDocker();
+            MainScreenController.currentPanel.refreshSwarmServices();
             return;
         }
 
@@ -67,16 +68,19 @@ export class MainScreenController {
                         this.refreshServiceTasks(message.serviceId);
                         break;
                     case 'getWorkerLogs':
-                        this.refreshWorkerLogs(message.taskId);
+                        this.refreshWorkerLogs(message.taskId, message.workerName);
                         break;
                     case 'getContainerLogs':
-                        this.refreshContainerLogs(message.containerId);
+                        this.refreshContainerLogs(message.containerId, message.containerName);
                         break;
                     case 'openWorkerTerminal':
                         this.openWorkerTerminal(message.taskId, message.node, message.workerName);
                         break;
                     case 'openContainerTerminal':
                         this.openContainerTerminal(message.containerId, message.containerName);
+                        break;
+                    case 'connectAndShowRecent':
+                        this.connectAndShowRecent(message.serverId, message.item);
                         break;
                 }
             },
@@ -85,13 +89,14 @@ export class MainScreenController {
         );
 
         // Auto refresh on start if connected
+        this.sendRecentItems();
         if (this.sshService.isConnected) {
             this.refreshDocker();
             this.refreshSwarmServices();
         }
     }
 
-    public async refreshContainerLogs(containerId: string) {
+    public async refreshContainerLogs(containerId: string, containerName?: string) {
         if (!this.sshService.isConnected) return;
 
         try {
@@ -102,17 +107,19 @@ export class MainScreenController {
         }
     }
 
+
     public async openContainerTerminal(containerId: string, containerName: string = '') {
-        // Resolve ID before passing to terminal to keep command simple
         const resolvedId = (await this.sshService.executeCommand(`sudo docker ps -q -f "id=${containerId}" || sudo docker ps -q -f "name=${containerId}"`)).trim();
+        await this.storageService.addRecentItem(this.sshService.configId, this.sshService.serverLabel, { type: 'container', id: containerId, name: containerName || containerId });
+        this.sendRecentItems();
+
         TerminalController.openContainerTerminal(this.sshService, this.sshService.serverLabel, resolvedId || containerId, containerName || containerId);
     }
 
-    public async refreshWorkerLogs(taskId: string) {
+    public async refreshWorkerLogs(taskId: string, workerName?: string, node?: string) {
         if (!this.sshService.isConnected) return;
 
         try {
-            // Get logs snapshot
             const output = await this.sshService.executeCommand(`sudo docker service logs --tail 200 ${taskId}`);
             this._panel.webview.postMessage({ command: 'workerLogs', taskId, data: output });
         } catch (err: any) {
@@ -120,15 +127,65 @@ export class MainScreenController {
         }
     }
 
-    public async openWorkerTerminal(taskId: string, node: string, workerName: string = '') {
-        // Para workers do Swarm, precisamos encontrar o ID do container no manager
-        try {
-            const resolvedId = (await this.sshService.executeCommand(`sudo docker ps -q -f "label=com.docker.swarm.task.id=${taskId}"`)).trim();
-            TerminalController.openContainerTerminal(this.sshService, this.sshService.serverLabel, resolvedId || taskId, workerName || taskId);
-        } catch (err) {
-            TerminalController.openContainerTerminal(this.sshService, this.sshService.serverLabel, taskId, workerName || taskId);
+
+    private async connectAndShowRecent(serverId: string, item: any) {
+        const servers = await this.storageService.getServers();
+        const server = servers.find(s => s.id === serverId);
+        
+        if (!server) {
+            vscode.window.showErrorMessage(`Servidor não encontrado: ${serverId}`);
+            return;
         }
+
+        vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: `Conectando a ${server.host} para acessar ${item.name}...`,
+            cancellable: false
+        }, async () => {
+            try {
+                await this.sshService.connect(server);
+                this.refreshDocker();
+                this.refreshSwarmServices();
+                
+                // Mudar para a aba de logs automaticamente
+                this._panel.webview.postMessage({ command: 'showTab', tabId: 'tab-logs' });
+                
+                if (item.type === 'container') {
+                    this.refreshContainerLogs(item.id, item.name);
+                    this.openContainerTerminal(item.id, item.name);
+                } else {
+                    this.refreshWorkerLogs(item.id, item.name, item.node);
+                    this.openWorkerTerminal(item.id, item.node, item.name);
+                }
+            } catch (err: any) {
+                vscode.window.showErrorMessage(`Falha na conexão automática: ${err.message}`);
+            }
+        });
     }
+
+    public async openWorkerTerminal(taskId: string, node: string, workerName: string = '') {
+        await this.storageService.addRecentItem(this.sshService.configId, this.sshService.serverLabel, { type: 'worker', id: taskId, name: workerName || taskId, node });
+        this.sendRecentItems();
+
+        try {
+            // No manager, o inspect traz o ContainerID independente do nó em que ele está rodando.
+            let containerId = (await this.sshService.executeCommand(`sudo docker inspect ${taskId} --format '{{.Status.ContainerStatus.ContainerID}}'`)).trim();
+            
+            // Tratamento contra retornos vazios ou erros de formatação
+            if (!containerId || containerId.includes("Error") || containerId.includes("no such object")) {
+                // Fallback para pesquisar o nome como estava antes
+                containerId = (await this.sshService.executeCommand(`sudo docker ps -q -f "label=com.docker.swarm.task.id=${taskId}"`)).trim();
+            }
+
+            // Passamos o nó de destino para que o TerminalController possa fazer o pivot via SSH se necessário
+            TerminalController.openContainerTerminal(this.sshService, this.sshService.serverLabel, containerId || taskId, workerName || taskId, node);
+        } catch (err) {
+            TerminalController.openContainerTerminal(this.sshService, this.sshService.serverLabel, taskId, workerName || taskId, node);
+        }
+
+    }
+
+
 
     public async refreshServiceTasks(serviceId: string) {
         if (!this.sshService.isConnected) return;
@@ -152,6 +209,8 @@ export class MainScreenController {
             return;
         }
 
+        this.sendRecentItems();
+
         try {
             const output = await this.sshService.executeCommand("sudo docker ps -a --format '{{.ID}}|{{.Image}}|{{.Status}}|{{.Names}}'");
             const containers = output.trim().split('\n').filter(l => l).map(line => {
@@ -163,6 +222,12 @@ export class MainScreenController {
         } catch (err: any) {
             this._panel.webview.postMessage({ command: 'dockerList', data: [], error: err.message });
         }
+    }
+
+    private sendRecentItems() {
+        const serverId = this.sshService.isConnected ? this.sshService.configId : undefined;
+        const recent = this.storageService.getRecentItems(serverId);
+        this._panel.webview.postMessage({ command: 'recentList', data: recent, isConnected: this.sshService.isConnected });
     }
 
     public async refreshSwarmServices() {
@@ -201,7 +266,6 @@ export class MainScreenController {
     private _getHtmlForWebview(webview: vscode.Webview): string {
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'src', 'app', 'features', 'main_screen', 'presentation', 'main.js'));
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'src', 'app', 'features', 'main_screen', 'presentation', 'style.css'));
-
         const codiconsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css'));
 
         return `<!DOCTYPE html>
@@ -224,13 +288,25 @@ export class MainScreenController {
                             </vscode-button>
                         </div>
                     </header>
-                    
                     <div class="main-content">
-                        <vscode-panels activeid="tab-containers">
+                        <vscode-panels activeid="tab-recent">
+                            <vscode-panel-tab id="tab-recent">RECENTES</vscode-panel-tab>
                             <vscode-panel-tab id="tab-containers">CONTAINERS</vscode-panel-tab>
                             <vscode-panel-tab id="tab-swarm">SERVIÇOS (SWARM)</vscode-panel-tab>
                             <vscode-panel-tab id="tab-logs">LOGS</vscode-panel-tab>
                             
+                            <vscode-panel-view id="view-recent">
+                                <section class="docker-section">
+                                    <div class="section-header">
+                                        <h2>Acessos Recentes</h2>
+                                        <p>Containers e workers acessados ultimamente</p>
+                                    </div>
+                                    <div id="recent-list" class="docker-list recent-grid">
+                                        <div class="empty-state">Nenhum acesso recente registrado.</div>
+                                    </div>
+                                </section>
+                            </vscode-panel-view>
+
                             <vscode-panel-view id="view-containers">
                                 <section class="docker-section">
                                     <div class="section-header">

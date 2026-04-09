@@ -13,6 +13,8 @@ export interface ServerConfig {
 
 export class StorageService {
     private static readonly SERVERS_KEY = 'visual_server.servers';
+    private static readonly RECENT_KEY = 'visual_server.recent';
+
     
     constructor(private context: vscode.ExtensionContext) {}
 
@@ -62,4 +64,35 @@ export class StorageService {
         await this.saveServers(filtered);
         await this.context.secrets.delete(`server_pwd_${id}`);
     }
+
+    public getRecentItems(serverId?: string): any[] {
+        const allRecent = this.context.globalState.get<any[]>(StorageService.RECENT_KEY, []);
+        if (serverId) {
+            return allRecent.filter(item => item.serverId === serverId).sort((a, b) => b.timestamp - a.timestamp).slice(0, 10);
+        }
+        return allRecent.sort((a, b) => b.timestamp - a.timestamp).slice(0, 15);
+    }
+
+    public async addRecentItem(serverId: string, serverLabel: string, item: { type: 'container' | 'worker', id: string, name: string, node?: string }): Promise<void> {
+        let allRecent = this.context.globalState.get<any[]>(StorageService.RECENT_KEY, []);
+        
+        // Remover entrada duplicada (mesmo ID e mesmo tipo no mesmo servidor)
+        allRecent = allRecent.filter(i => !(i.id === item.id && i.type === item.type && i.serverId === serverId));
+        
+        // Adicionar novo item no topo
+        allRecent.unshift({
+            ...item,
+            serverId,
+            serverLabel,
+            timestamp: Date.now()
+        });
+
+        // Limitar total global (opcional, mas bom pra evitar crescer infinitamente)
+        if (allRecent.length > 50) {
+            allRecent = allRecent.slice(0, 50);
+        }
+
+        await this.context.globalState.update(StorageService.RECENT_KEY, allRecent);
+    }
 }
+
