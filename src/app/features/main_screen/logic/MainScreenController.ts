@@ -129,7 +129,9 @@ export class MainScreenController {
                     id: fullId || containerId,
                     image: image || 'N/A',
                     status: status || 'N/A',
-                    type: 'Container'
+                    type: 'Container',
+                    serverAlias: this.sshService.serverAlias,
+                    serverHost: this.sshService.serverHost
                 }
             });
         } catch (err: any) {
@@ -140,7 +142,7 @@ export class MainScreenController {
 
     public async openContainerTerminal(containerId: string, containerName: string = '') {
         const resolvedId = (await this.sshService.executeCommand(`sudo docker ps -q -f "id=${containerId}" || sudo docker ps -q -f "name=${containerId}"`)).trim();
-        await this.storageService.addRecentItem(this.sshService.configId, this.sshService.serverLabel, { type: 'container', id: containerId, name: containerName || containerId });
+        await this.storageService.addRecentItem(this.sshService.configId, this.sshService.serverLabel, this.sshService.serverAlias, this.sshService.serverHost, { type: 'container', id: containerId, name: containerName || containerId });
         this.sendRecentItems();
 
         TerminalController.openContainerTerminal(this.sshService, this.sshService.serverLabel, resolvedId || containerId, containerName || containerId);
@@ -164,7 +166,9 @@ export class MainScreenController {
                     image: image || 'N/A',
                     status: state || 'N/A',
                     node: nodeId || 'N/A',
-                    type: 'Worker (Swarm Task)'
+                    type: 'Worker (Swarm Task)',
+                    serverAlias: this.sshService.serverAlias,
+                    serverHost: this.sshService.serverHost
                 }
             });
         } catch (err: any) {
@@ -209,7 +213,7 @@ export class MainScreenController {
     }
 
     public async openWorkerTerminal(taskId: string, node: string, workerName: string = '') {
-        await this.storageService.addRecentItem(this.sshService.configId, this.sshService.serverLabel, { type: 'worker', id: taskId, name: workerName || taskId, node });
+        await this.storageService.addRecentItem(this.sshService.configId, this.sshService.serverLabel, this.sshService.serverAlias, this.sshService.serverHost, { type: 'worker', id: taskId, name: workerName || taskId, node });
         this.sendRecentItems();
 
         try {
@@ -269,9 +273,12 @@ export class MainScreenController {
         }
     }
 
+    public showTab(tabId: string) {
+        this._panel.webview.postMessage({ command: 'showTab', tabId });
+    }
+
     private sendRecentItems() {
-        const serverId = this.sshService.isConnected ? this.sshService.configId : undefined;
-        const recent = this.storageService.getRecentItems(serverId);
+        const recent = this.storageService.getRecentItems();
         this._panel.webview.postMessage({ command: 'recentList', data: recent, isConnected: this.sshService.isConnected });
     }
 
@@ -344,9 +351,14 @@ export class MainScreenController {
                                 <section class="docker-section">
                                     <div class="section-header">
                                         <h2>Acessos Recentes</h2>
-                                        <p>Containers e workers acessados ultimamente</p>
+                                        <p>Containers e workers acessados em todos os seus servidores</p>
                                     </div>
-                                    <div id="recent-list" class="docker-list recent-grid">
+                                    <div class="filter-container">
+                                        <vscode-text-field id="recent-search" placeholder="Filtrar por nome ou servidor...">
+                                            <span slot="start" class="codicon codicon-search"></span>
+                                        </vscode-text-field>
+                                    </div>
+                                    <div id="recent-list" class="docker-list recent-vertical">
                                         <div class="empty-state">Nenhum acesso recente registrado.</div>
                                     </div>
                                 </section>
@@ -391,9 +403,11 @@ export class MainScreenController {
                                     <div class="logs-header-inline">
                                         <div class="logs-title-group">
                                             <h2 id="logs-title">Logs</h2>
-                                            <vscode-text-field id="logs-filter" placeholder="Filtrar logs..." size="30">
-                                                <span slot="start" class="codicon codicon-search"></span>
-                                            </vscode-text-field>
+                                            <div class="logs-filter-row">
+                                                <vscode-text-field id="logs-filter" placeholder="Filtrar logs..." size="40">
+                                                    <span slot="start" class="codicon codicon-search"></span>
+                                                </vscode-text-field>
+                                            </div>
                                         </div>
                                         <div class="logs-actions">
                                             <vscode-button id="btn-copy-logs" appearance="icon" title="Copiar Logs">

@@ -3,13 +3,17 @@
 
     const listScreen = document.getElementById('list-screen');
     const addScreen = document.getElementById('add-screen');
+    
     const serverListContainer = document.getElementById('server-list');
+    const formTitle = document.getElementById('form-title');
 
     const goToAddBtn = document.getElementById('goToAddBtn');
     const backToListBtn = document.getElementById('backToListBtn');
     const saveConnectBtn = document.getElementById('saveConnectBtn');
 
     // Form inputs
+    const serverIdInput = document.getElementById('serverId');
+    const aliasInput = document.getElementById('alias');
     const hostInput = document.getElementById('host');
     const portInput = document.getElementById('port');
     const usernameInput = document.getElementById('username');
@@ -18,7 +22,18 @@
     // Initial load
     vscode.postMessage({ type: 'requestServers' });
 
+    function clearForm() {
+        serverIdInput.value = '';
+        aliasInput.value = '';
+        hostInput.value = '';
+        portInput.value = '22';
+        usernameInput.value = '';
+        passwordInput.value = '';
+        formTitle.innerText = 'Nova Conexão';
+    }
+
     goToAddBtn.addEventListener('click', () => {
+        clearForm();
         listScreen.classList.add('hidden');
         addScreen.classList.remove('hidden');
     });
@@ -29,6 +44,8 @@
     });
 
     saveConnectBtn.addEventListener('click', () => {
+        const id = serverIdInput.value;
+        const alias = aliasInput.value;
         const host = hostInput.value;
         const port = portInput.value;
         const username = usernameInput.value;
@@ -38,11 +55,9 @@
 
         vscode.postMessage({
             type: 'saveAndConnect',
-            value: { host, port, username, password }
+            value: { id, alias, host, port, username, password }
         });
 
-        // Go back to list immediately or wait for message?
-        // Let's go back and wait for loadServers to refresh
         addScreen.classList.add('hidden');
         listScreen.classList.remove('hidden');
     });
@@ -70,14 +85,34 @@
             item.className = 'server-item';
             item.innerHTML = `
                 <div class="server-info">
-                    <div class="server-name">${server.label || server.host}</div>
+                    <div class="server-name">${server.alias || server.host}</div>
                     <div class="server-meta">${server.username}@${server.host}:${server.port}</div>
                 </div>
                 <div class="server-actions">
+                    <vscode-button appearance="icon" class="edit-btn" title="Editar">
+                        <span class="codicon codicon-edit"></span>
+                    </vscode-button>
                     <span class="codicon codicon-chevron-right"></span>
                 </div>
             `;
             
+            // Edit button click
+            item.querySelector('.edit-btn').addEventListener('click', (e) => {
+                e.stopPropagation(); // Don't trigger connection
+                
+                serverIdInput.value = server.id;
+                aliasInput.value = server.alias || '';
+                hostInput.value = server.host;
+                portInput.value = server.port;
+                usernameInput.value = server.username;
+                passwordInput.value = server.password || '';
+                formTitle.innerText = 'Editar Conexão';
+                
+                listScreen.classList.add('hidden');
+                addScreen.classList.remove('hidden');
+            });
+
+            // Item click to connect
             item.addEventListener('click', () => {
                 vscode.postMessage({
                     type: 'connectServer',

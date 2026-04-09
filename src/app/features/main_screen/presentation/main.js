@@ -3,6 +3,7 @@ const vscode = acquireVsCodeApi();
 // State
 let allContainers = [];
 let allServices = [];
+let rawRecentItems = [];
 let originalLogs = '';
 let isClientConnected = false;
 
@@ -17,6 +18,7 @@ const connectionStatus = document.getElementById('connection-status');
 const swarmStatus = document.getElementById('swarm-status');
 const containerSearch = document.getElementById('container-search');
 const swarmSearch = document.getElementById('swarm-search');
+const recentSearch = document.getElementById('recent-search');
 const logsContent = document.getElementById('logs-content');
 const logsTitle = document.getElementById('logs-title');
 const logsFilter = document.getElementById('logs-filter');
@@ -88,7 +90,13 @@ window.addEventListener('message', event => {
         case 'workerLogs':
         case 'containerLogs':
             originalLogs = message.error ? `Erro: ${message.error}` : (message.data || '');
-            if (message.metadata) renderLogsMetadata(message.metadata);
+            if (message.metadata) {
+                renderLogsMetadata(message.metadata);
+                const serverInfo = message.metadata.serverAlias 
+                    ? `<b>${message.metadata.serverAlias}</b> (${message.metadata.serverHost})`
+                    : `<b>${message.metadata.serverHost}</b>`;
+                logsTitle.innerHTML = `<span style="opacity: 0.7;">Logs:</span> ${message.metadata.name} <span style="margin: 0 15px; opacity: 0.3;">|</span> <small style="font-weight: 500; font-size: 0.75rem; text-transform: none; letter-spacing: normal;">Servidor: ${serverInfo}</small>`;
+            }
             applyLogsFilter(logsFilter.value);
             break;
         case 'recentList':
@@ -513,32 +521,64 @@ function showLogs(id, type, node = null, name = '') {
 
 function renderRecentList(recent) {
     if (!recentList) return;
+    rawRecentItems = recent;
 
     if (recent.length === 0) {
         recentList.innerHTML = '<div class="empty-state">Nenhum acesso recente registrado.</div>';
         return;
     }
 
-    recentList.innerHTML = recent.map(item => `
-        <div class="docker-card recent-card ${!isClientConnected ? 'disconnected-recent' : ''}" 
-             data-id="${item.id}" 
-             data-type="${item.type}" 
-             data-node="${item.node || ''}"
-             data-server-id="${item.serverId}">
-            <div class="card-info">
-                <span class="container-name">${item.name}</span>
-                <span class="server-badge"><span class="codicon codicon-link"></span> ${item.serverLabel || 'Desconhecido'}</span>
-                <div class="service-meta" style="margin-top: 8px;">
-                    <span class="type-tag">${item.type === 'container' ? 'Container' : 'Worker'}</span>
-                    ${item.node ? `<span class="worker-node"><span class="codicon codicon-server"></span> ${item.node}</span>` : ''}
+    // Grouping by server
+    const grouped = {};
+    recent.forEach(item => {
+        if (!grouped[item.serverId]) {
+            grouped[item.serverId] = {
+                alias: item.serverAlias,
+                host: item.serverHost,
+                label: item.serverLabel,
+                items: []
+            };
+        }
+        grouped[item.serverId].items.push(item);
+    });
+
+    recentList.innerHTML = Object.keys(grouped).map(serverId => {
+        const group = grouped[serverId];
+        const displayLabel = group.alias 
+            ? `<b>${group.alias}</b> <small style="opacity: 0.6; margin-left: 5px;">(${group.host})</small>` 
+            : `<b>${group.host}</b>`;
+
+        return `
+            <div class="recent-server-group">
+                <div class="server-group-header">
+                    <span class="codicon codicon-server"></span>
+                    <span>${displayLabel}</span>
+                </div>
+                <div class="server-group-items">
+                    ${group.items.map(item => `
+                        <div class="docker-card recent-card ${!isClientConnected ? 'disconnected-recent' : ''}" 
+                             data-id="${item.id}" 
+                             data-type="${item.type}" 
+                             data-node="${item.node || ''}"
+                             data-server-id="${item.serverId}">
+                            <div class="card-main">
+                                <div class="card-info">
+                                    <span class="container-name">${item.name}</span>
+                                    <div class="service-meta" style="margin-top: 4px;">
+                                        <span class="type-tag">${item.type === 'container' ? 'Container' : 'Worker'}</span>
+                                        ${item.node ? `<span class="worker-node"><span class="codicon codicon-server"></span> ${item.node}</span>` : ''}
+                                    </div>
+                                </div>
+                                <div class="card-actions">
+                                    <span class="codicon codicon-history"></span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
                 </div>
             </div>
-            <div class="card-actions">
-                <span class="codicon codicon-history"></span>
-            </div>
-        </div>
-    `).join('');
-
+        `;
+    }).join('');
 
     document.querySelectorAll('.recent-card').forEach(card => {
         card.onclick = () => {
@@ -560,6 +600,18 @@ function renderRecentList(recent) {
         };
     });
 }
+
+// Recent search
+recentSearch.addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase();
+    const filtered = rawRecentItems.filter(item => 
+        item.name.toLowerCase().includes(term) || 
+        (item.serverLabel && item.serverLabel.toLowerCase().includes(term)) ||
+        (item.serverAlias && item.serverAlias.toLowerCase().includes(term)) ||
+        (item.serverHost && item.serverHost.toLowerCase().includes(term))
+    );
+    renderRecentList(filtered);
+});
 
 
 

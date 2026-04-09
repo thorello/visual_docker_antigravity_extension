@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 export interface ServerConfig {
     id: string;
     label: string;
+    alias?: string;
     host: string;
     username: string;
     port: number;
@@ -73,7 +74,7 @@ export class StorageService {
         return allRecent.sort((a, b) => b.timestamp - a.timestamp).slice(0, 15);
     }
 
-    public async addRecentItem(serverId: string, serverLabel: string, item: { type: 'container' | 'worker', id: string, name: string, node?: string }): Promise<void> {
+    public async addRecentItem(serverId: string, serverLabel: string, serverAlias: string, serverHost: string, item: { type: 'container' | 'worker', id: string, name: string, node?: string }): Promise<void> {
         let allRecent = this.context.globalState.get<any[]>(StorageService.RECENT_KEY, []);
         
         // Remover entrada duplicada (mesmo ID e mesmo tipo no mesmo servidor)
@@ -84,6 +85,8 @@ export class StorageService {
             ...item,
             serverId,
             serverLabel,
+            serverAlias,
+            serverHost,
             timestamp: Date.now()
         });
 
