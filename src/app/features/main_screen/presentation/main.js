@@ -3,6 +3,7 @@ const vscode = acquireVsCodeApi();
 // State
 let allContainers = [];
 let allServices = [];
+let originalLogs = '';
 
 // DOM Elements
 const btnRefresh = document.getElementById('btn-refresh');
@@ -12,41 +13,47 @@ const connectionStatus = document.getElementById('connection-status');
 const swarmStatus = document.getElementById('swarm-status');
 const containerSearch = document.getElementById('container-search');
 const swarmSearch = document.getElementById('swarm-search');
-
-// Logs "Modal" Elements
-let logsContainer = document.getElementById('logs-container');
-if (!logsContainer) {
-    logsContainer = document.createElement('div');
-    logsContainer.id = 'logs-container';
-    logsContainer.className = 'logs-modal hidden';
-    logsContainer.innerHTML = `
-        <div class="logs-header">
-            <h3>Logs</h3>
-            <div class="logs-actions">
-                <vscode-button id="btn-copy-logs" appearance="icon" title="Copiar Logs">
-                    <span class="codicon codicon-copy"></span>
-                </vscode-button>
-                <vscode-button id="close-logs" appearance="icon">
-                    <span class="codicon codicon-close"></span>
-                </vscode-button>
-            </div>
-        </div>
-        <pre id="logs-content">Carregando logs...</pre>
-    `;
-    document.body.appendChild(logsContainer);
-    
-    document.getElementById('close-logs').onclick = () => {
-        logsContainer.classList.add('hidden');
-    };
-    
-    document.getElementById('btn-copy-logs').onclick = () => {
-        const content = document.getElementById('logs-content').innerText;
-        navigator.clipboard.writeText(content);
-        vscode.window.showInformationMessage('Logs copiados!');
-    };
-}
-
 const logsContent = document.getElementById('logs-content');
+const logsTitle = document.getElementById('logs-title');
+const logsFilter = document.getElementById('logs-filter');
+const logsSection = document.getElementById('logs-section');
+const btnMaximize = document.getElementById('btn-maximize-logs');
+const maximizeIcon = document.getElementById('maximize-icon');
+const mainPanels = document.querySelector('vscode-panels');
+
+// Logs Actions
+document.getElementById('btn-copy-logs').onclick = () => {
+    const content = logsContent.innerText;
+    if (content) {
+        navigator.clipboard.writeText(content);
+    }
+};
+
+document.getElementById('btn-clear-logs').onclick = () => {
+     originalLogs = '';
+    logsContent.innerText = 'Logs limpos.';
+};
+
+btnMaximize.onclick = () => {
+    const isMaximized = logsSection.classList.toggle('maximized');
+    maximizeIcon.className = isMaximized ? 'codicon codicon-screen-normal' : 'codicon codicon-screen-full';
+};
+
+logsFilter.addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase();
+    applyLogsFilter(term);
+});
+
+function applyLogsFilter(term) {
+    if (!term) {
+        logsContent.innerText = originalLogs;
+    } else {
+        const lines = originalLogs.split('\n');
+        const filteredLines = lines.filter(line => line.toLowerCase().includes(term));
+        logsContent.innerText = filteredLines.join('\n') || 'Nenhum resultado para o filtro.';
+    }
+    logsContent.scrollTop = logsContent.scrollHeight;
+}
 
 // Message Listener
 window.addEventListener('message', event => {
@@ -65,8 +72,8 @@ window.addEventListener('message', event => {
             break;
         case 'workerLogs':
         case 'containerLogs':
-            logsContent.innerText = message.error ? `Erro: ${message.error}` : (message.data || 'Nenhum log encontrado.');
-            logsContent.scrollTop = logsContent.scrollHeight;
+            originalLogs = message.error ? `Erro: ${message.error}` : (message.data || '');
+            applyLogsFilter(logsFilter.value);
             break;
     }
 });
@@ -260,8 +267,17 @@ function renderServiceTasks(serviceId, tasks, error) {
 }
 
 function showLogs(id, type, node = null, name = '') {
-    logsContainer.classList.remove('hidden');
-    logsContent.innerText = `Buscando logs...`;
+    if (mainPanels) {
+        mainPanels.activeid = 'tab-logs';
+    }
+    
+    if (logsFilter) {
+        logsFilter.value = '';
+    }
+    
+    logsTitle.innerText = `Logs: ${name || id}`;
+    logsContent.innerText = `Buscando logs de ${name || id}...`;
+    
     if (type === 'container') {
         vscode.postMessage({ command: 'getContainerLogs', containerId: id });
         vscode.postMessage({ command: 'openContainerTerminal', containerId: id, containerName: name });
