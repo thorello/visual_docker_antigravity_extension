@@ -4,11 +4,15 @@ const vscode = acquireVsCodeApi();
 let allContainers = [];
 let allServices = [];
 let originalLogs = '';
+let isClientConnected = false;
+
 
 // DOM Elements
 const btnRefresh = document.getElementById('btn-refresh');
 const dockerList = document.getElementById('docker-list');
 const swarmList = document.getElementById('swarm-list');
+const recentList = document.getElementById('recent-list');
+
 const connectionStatus = document.getElementById('connection-status');
 const swarmStatus = document.getElementById('swarm-status');
 const containerSearch = document.getElementById('container-search');
@@ -75,8 +79,22 @@ window.addEventListener('message', event => {
             originalLogs = message.error ? `Erro: ${message.error}` : (message.data || '');
             applyLogsFilter(logsFilter.value);
             break;
+        case 'recentList':
+            isClientConnected = message.isConnected;
+            renderRecentList(message.data || []);
+            break;
+        case 'showTab':
+            if (mainPanels) {
+                mainPanels.activeid = message.tabId;
+                mainPanels.setAttribute('activeid', message.tabId);
+            }
+            break;
+
     }
 });
+
+
+
 
 function renderDockerList(containers, error) {
     if (error) {
@@ -269,7 +287,9 @@ function renderServiceTasks(serviceId, tasks, error) {
 function showLogs(id, type, node = null, name = '') {
     if (mainPanels) {
         mainPanels.activeid = 'tab-logs';
+        mainPanels.setAttribute('activeid', 'tab-logs');
     }
+
     
     if (logsFilter) {
         logsFilter.value = '';
@@ -279,13 +299,64 @@ function showLogs(id, type, node = null, name = '') {
     logsContent.innerText = `Buscando logs de ${name || id}...`;
     
     if (type === 'container') {
-        vscode.postMessage({ command: 'getContainerLogs', containerId: id });
+        vscode.postMessage({ command: 'getContainerLogs', containerId: id, containerName: name });
         vscode.postMessage({ command: 'openContainerTerminal', containerId: id, containerName: name });
     } else {
-        vscode.postMessage({ command: 'getWorkerLogs', taskId: id });
+        vscode.postMessage({ command: 'getWorkerLogs', taskId: id, workerName: name, node: node });
         vscode.postMessage({ command: 'openWorkerTerminal', taskId: id, node: node, workerName: name });
     }
 }
+
+function renderRecentList(recent) {
+    if (!recentList) return;
+
+    if (recent.length === 0) {
+        recentList.innerHTML = '<div class="empty-state">Nenhum acesso recente registrado.</div>';
+        return;
+    }
+
+    recentList.innerHTML = recent.map(item => `
+        <div class="docker-card recent-card ${!isClientConnected ? 'disconnected-recent' : ''}" 
+             data-id="${item.id}" 
+             data-type="${item.type}" 
+             data-node="${item.node || ''}"
+             data-server-id="${item.serverId}">
+            <div class="card-info">
+                <span class="container-name">${item.name}</span>
+                <span class="server-badge"><span class="codicon codicon-link"></span> ${item.serverLabel || 'Desconhecido'}</span>
+                <div class="meta-row">
+                    <span class="type-tag">${item.type === 'container' ? 'Container' : 'Worker'}</span>
+                    ${item.node ? `<span class="worker-node"><span class="codicon codicon-server"></span> ${item.node}</span>` : ''}
+                </div>
+            </div>
+            <div class="card-actions">
+                <span class="codicon codicon-history"></span>
+            </div>
+        </div>
+    `).join('');
+
+    document.querySelectorAll('.recent-card').forEach(card => {
+        card.onclick = () => {
+            const id = card.getAttribute('data-id');
+            const type = card.getAttribute('data-type');
+            const node = card.getAttribute('data-node');
+            const serverId = card.getAttribute('data-server-id');
+            const name = card.querySelector('.container-name').innerText;
+            
+            if (!isClientConnected) {
+                vscode.postMessage({ 
+                    command: 'connectAndShowRecent', 
+                    serverId: serverId,
+                    item: { id, type, node, name }
+                });
+            } else {
+                showLogs(id, type, node || null, name);
+            }
+        };
+    });
+}
+
+
 
 function getStatusClass(status) {
     if (status.includes('Up')) return 'status-up';

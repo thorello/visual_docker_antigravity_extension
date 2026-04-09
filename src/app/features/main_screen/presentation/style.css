@@ -59,6 +59,14 @@ body {
     gap: 0.75rem;
 }
 
+.recent-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+    padding-bottom: 2rem;
+}
+
+
 .filter-container {
     margin-bottom: 1rem;
     display: flex;
@@ -404,3 +412,72 @@ vscode-panel-tab {
     border-color: var(--error);
     opacity: 1;
 }
+
+.recent-card {
+    border-left: 4px solid var(--vscode-charts-orange) !important;
+    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(var(--vscode-button-background), 0.05) 100%);
+}
+
+.recent-card .codicon-history {
+    opacity: 0.2;
+    font-size: 1.5rem;
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.recent-card .card-info {
+    position: relative;
+    padding-right: 30px;
+}
+
+.server-badge {
+    font-size: 0.75rem;
+    color: var(--vscode-charts-blue);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 2px 0;
+}
+
+.meta-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.type-tag {
+    font-size: 0.65rem;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(var(--vscode-button-background), 0.1);
+    color: var(--text-color);
+    text-transform: uppercase;
+    opacity: 0.8;
+}
+
+.disconnected-recent:hover {
+    border-color: var(--vscode-charts-orange) !important;
+}
+
+.disconnected-recent::after {
+    content: "CONECTAR";
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 0.6rem;
+    background: var(--vscode-charts-orange);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: bold;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.disconnected-recent:hover::after {
+    opacity: 1;
+}
+
