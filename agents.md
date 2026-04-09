@@ -1,3 +1,5 @@
+NUNCA, NUNCA, NUNCA commit arquivos sozinho!
+
 # Agentes do Projeto
 
 Este arquivo define os papéis que a IA deve assumir ao operar nesta extensão.

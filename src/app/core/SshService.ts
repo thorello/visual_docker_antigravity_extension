@@ -12,6 +12,10 @@ export class SshService {
     private isMock: boolean = false;
     private _isWsl: boolean = false;
 
+    public configId: string = '';
+    public serverLabel: string = 'Remote Server';
+
+
     get isConnected(): boolean {
         return this.client !== null || this._isWsl || this.isMock;
     }
@@ -20,7 +24,10 @@ export class SshService {
         return this._isWsl;
     }
 
-    public async connect(config: ConnectConfig & { isWsl?: boolean, wslDistro?: string, isMock?: boolean }): Promise<void> {
+    public async connect(config: ConnectConfig & { id?: string, isWsl?: boolean, wslDistro?: string, isMock?: boolean, label?: string }): Promise<void> {
+        this.configId = config.id || 'default';
+        this.serverLabel = config.label || config.host || 'Remote Server';
+
         return new Promise((resolve, reject) => {
             if (config.isMock) {
                 this.isMock = true;
@@ -295,8 +302,51 @@ export class SshService {
         });
     }
 
+    /**
+     * Abre um canal exec com PTY alocado.
+     * Diferente do startShell, passa o comando diretamente ao servidor sem shell interativo,
+     * eliminando o problema de mangling de caracteres em strings longas.
+     */
+    public async startExec(command: string, onData: (data: string) => void, onExit: () => void): Promise<any> {
+        if (this.isMock || this._isWsl) {
+            const stream = await this.startShell(onData, onExit);
+            setTimeout(() => { stream.write(command + '\n'); }, 1000);
+            return stream;
+        }
+        if (!this.client) throw new Error('Not connected');
+
+        return new Promise((resolve, reject) => {
+            // { pty: true } aloca PTY; o comando vai direto, sem shell interativo
+            this.client!.exec(command, { pty: true }, (err, stream) => {
+                if (err) return reject(err);
+                stream.on('data', (data: Buffer) => onData(data.toString()));
+                stream.stderr.on('data', (data: Buffer) => onData(data.toString()));
+                stream.on('close', () => onExit());
+                resolve(stream);
+            });
+        });
+    }
+
+
     public async executeCommand(command: string): Promise<string> {
         return new Promise((resolve, reject) => {
+
+            if (this.isMock) {
+                if (command.includes('docker ps')) {
+                    resolve("id1|nginx:latest|Up 2 hours|web-server\nid2|postgres:13|Up 5 hours|db-prod\nid3|redis:alpine|Exited (0) 1 day ago|cache");
+                } else if (command.includes('docker service ls')) {
+                    resolve("sid1|api-gateway|replicated|3/3|my-api:v1\nsid2|worker-node|replicated|1/2|my-worker:latest\nsid3|monitoring|global|1/1|prometheus:latest");
+                } else if (command.includes('docker service ps')) {
+                    resolve("t1|api-gateway.1|node-1|Running|Running 2 hours ago\nt2|api-gateway.2|node-2|Running|Running 2 hours ago\nt3|api-gateway.3|node-1|Running|Running 2 hours ago");
+                } else if (command.includes('docker service logs')) {
+                    resolve("[2026-04-08 20:20:01] INFO: API Gateway started successfully\n[2026-04-08 20:21:05] DEBUG: Received request from 172.18.0.5\n[2026-04-08 20:22:10] WARN: Rate limit reached for IP 10.0.0.55\n[2026-04-08 20:25:33] INFO: Database connection pool health check: OK");
+                } else if (command.includes('docker logs')) {
+                    resolve("yarn run v1.22.19\n$ node dist/index.js\n[server]: Server is running at http://localhost:3000\n[db]: Connected to PostgreSQL\n[redis]: Cache warmed up\n[api]: GET /api/health - 200 OK\n[api]: POST /api/v1/data - 201 Created");
+                } else {
+                    resolve(`Comando mock executado: ${command}`);
+                }
+                return;
+            }
             if (this._isWsl) {
                 const cmdPrefix = this.wslDistro ? `wsl -d ${this.wslDistro} --` : `wsl --`;
                 child_process.exec(`${cmdPrefix} sh -c "${command}"`, (err, stdout, stderr) => {

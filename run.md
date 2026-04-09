@@ -25,8 +25,8 @@ npx vsce package
 code --install-extension visual-server-0.0.1.vsix --force
 ```
 
-## 4. Estrutura Semantic
-- `src/core/VisualServerPanel.ts`: Webview Backend, gerencia as mensagens do FrontEnd (UI).
-- `src/services/sshService.ts`: Wrapper para conectar e executar comandos SSH ou via WSL (`wsl -d`).
-- `src/services/storageService.ts`: Usa `SecretStorage` para persistir dados bancários da extensão.
-- `resources/webview/`: Interface HTML/CSS/JS (Vanilla) limpa e estilizada consumindo o webview-ui-toolkit.
+## 4. Estrutura Semantic (Feature-First)
+- `src/app/core/`: Infraestrutura global (Storage, SSH Service, FileSystem Provider).
+- `src/app/features/main_screen/`: Lógica e apresentação da tela principal (Dashboard).
+- `src/app/features/sidebar/`: Interface de conexão SSH e explorer lateral.
+- `src/app/features/activitybar_icon/`: Ativos e ícones da Activity Bar.
