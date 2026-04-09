@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { StorageService } from '../../../core/StorageService';
 import { SshService } from '../../../core/SshService';
+import { TerminalController } from '../../../core/TerminalController';
 
 export class MainScreenController {
     public static currentPanel: MainScreenController | undefined;
@@ -69,10 +70,10 @@ export class MainScreenController {
                         this.refreshContainerLogs(message.containerId);
                         break;
                     case 'openWorkerTerminal':
-                        this.openWorkerTerminal(message.taskId, message.node);
+                        this.openWorkerTerminal(message.taskId, message.node, message.workerName);
                         break;
                     case 'openContainerTerminal':
-                        this.openContainerTerminal(message.containerId);
+                        this.openContainerTerminal(message.containerId, message.containerName);
                         break;
                 }
             },
@@ -98,10 +99,10 @@ export class MainScreenController {
         }
     }
 
-    public openContainerTerminal(containerId: string) {
-        const terminal = vscode.window.createTerminal(`Container: ${containerId}`);
-        terminal.show();
-        vscode.window.showInformationMessage(`Abrindo terminal para o container ${containerId}...`);
+    public async openContainerTerminal(containerId: string, containerName: string = '') {
+        // Resolve ID before passing to terminal to keep command simple
+        const resolvedId = (await this.sshService.executeCommand(`sudo docker ps -q -f "id=${containerId}" || sudo docker ps -q -f "name=${containerId}"`)).trim();
+        TerminalController.openContainerTerminal(this.sshService, this.sshService.serverLabel, resolvedId || containerId, containerName || containerId);
     }
 
     public async refreshWorkerLogs(taskId: string) {
@@ -116,18 +117,14 @@ export class MainScreenController {
         }
     }
 
-    public openWorkerTerminal(taskId: string, node: string) {
-        // Since we are connected to the manager, we can try to find the container ID and exec into it
-        // Or just open a terminal that says it's connecting to the task
-        // For simplicity in this blueprint, we'll open a terminal that runs docker service logs -f
-        // as exec requires knowing exactly where the container is and having direct access.
-        
-        const terminal = vscode.window.createTerminal(`Worker: ${taskId}`);
-        terminal.show();
-        // This is a bit of a hack since we don't have a direct "exec" command in our SshService yet for terminals
-        // But we can suggest the user what to run or if we had a better terminal controller, we'd pipe it.
-        // For now, let's just log that we are trying to open.
-        vscode.window.showInformationMessage(`Abrindo terminal para worker ${taskId} no node ${node}...`);
+    public async openWorkerTerminal(taskId: string, node: string, workerName: string = '') {
+        // Para workers do Swarm, precisamos encontrar o ID do container no manager
+        try {
+            const resolvedId = (await this.sshService.executeCommand(`sudo docker ps -q -f "label=com.docker.swarm.task.id=${taskId}"`)).trim();
+            TerminalController.openContainerTerminal(this.sshService, this.sshService.serverLabel, resolvedId || taskId, workerName || taskId);
+        } catch (err) {
+            TerminalController.openContainerTerminal(this.sshService, this.sshService.serverLabel, taskId, workerName || taskId);
+        }
     }
 
     public async refreshServiceTasks(serviceId: string) {
