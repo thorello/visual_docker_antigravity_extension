@@ -119,7 +119,7 @@ export class MainScreenController {
             const inspect = await this.sshService.executeCommand(`sudo docker inspect ${containerId} --format '{{.Id}}|{{.Config.Image}}|{{.State.Status}}'`);
             const [fullId, image, status] = inspect.trim().split('|');
             
-            const output = await this.sshService.executeCommand(`sudo docker logs --tail 500 ${containerId}`);
+            const output = await this.sshService.executeCommand(`sudo docker logs -t --tail 500 ${containerId}`);
             this._panel.webview.postMessage({ 
                 command: 'containerLogs', 
                 containerId, 
@@ -155,7 +155,7 @@ export class MainScreenController {
             const inspect = await this.sshService.executeCommand(`sudo docker inspect ${taskId} --format '{{.ID}}|{{.Spec.ContainerSpec.Image}}|{{.Status.State}}|{{.NodeID}}'`);
             const [fullId, image, state, nodeId] = inspect.trim().split('|');
 
-            const output = await this.sshService.executeCommand(`sudo docker service logs --tail 200 ${taskId}`);
+            const output = await this.sshService.executeCommand(`sudo docker service logs -t --tail 200 ${taskId}`);
             this._panel.webview.postMessage({ 
                 command: 'workerLogs', 
                 taskId, 
@@ -410,7 +410,14 @@ export class MainScreenController {
                                             </div>
                                         </div>
                                         <div class="logs-actions">
-                                            <vscode-button id="btn-copy-logs" appearance="icon" title="Copiar Logs">
+                                            <vscode-dropdown id="log-interval-select" title="Agrupar por intervalo">
+                                                <vscode-option value="1">1 min</vscode-option>
+                                                <vscode-option value="5" selected>5 min</vscode-option>
+                                                <vscode-option value="10">10 min</vscode-option>
+                                                <vscode-option value="30">30 min</vscode-option>
+                                                <vscode-option value="60">1h</vscode-option>
+                                            </vscode-dropdown>
+                                            <vscode-button id="btn-copy-logs" appearance="icon" title="Copiar Tudo">
                                                 <span class="codicon codicon-copy"></span>
                                             </vscode-button>
                                             <vscode-button id="btn-clear-logs" appearance="icon" title="Limpar Logs">
@@ -425,7 +432,7 @@ export class MainScreenController {
                                         <!-- Metadata injected here -->
                                     </div>
                                     <div class="logs-terminal-container">
-                                        <pre id="logs-content">Selecione um container ou worker para visualizar os logs...</pre>
+                                        <div id="logs-content">Selecione um container ou worker para visualizar os logs...</div>
                                     </div>
                                 </section>
                             </vscode-panel-view>
