@@ -15,15 +15,22 @@ npm run watch
 Para abrir o Visual Server, utilize na Activity Bar o ícone do servidor e clique em "Open Dashboard" ou aperte Ctrl+Shift+P e procure `Visual Server: Abrir Dashboard`.
 
 ## 3. Empacotar e Instalar Permanente
-Para exportar a extensão para um pacote ".vsix":
+Use este fluxo para testar a extensão diretamente no Antigravity:
 
 ```powershell
-# Compilar e empacotar
-npx vsce package
+# 1. Carrega a versão do arquivo .version (remove o 'v' se presente)
+$VERSION = (Get-Content .version).Trim().Replace('v', '')
 
-# Exemplo para instalar/atualizar
-code --install-extension visual-server-0.0.1.vsix --force
+# 2. Sincroniza a versão no package.json (sem criar commit/tag)
+npm version $VERSION --no-git-tag-version
+
+# 3. Gera o arquivo .vsix
+npx vsce package --allow-missing-repository --allow-star-activation
+
+# 4. Instala/Atualiza no Antigravity usando a versão dinâmica
+antigravity --install-extension "visual-server-$VERSION.vsix" --force
 ```
+
 
 ## 4. Estrutura Semantic (Feature-First)
 - `src/app/core/`: Infraestrutura global (Storage, SSH Service, FileSystem Provider).

@@ -1,14 +1,20 @@
 {
-  "name": "antigravity-blueprint",
-  "displayName": "Antigravity IDE Blueprint",
-  "description": "Blueprint for Building Antigravity IDE Extensions",
-  "version": "1.0.0",
+  "name": "visual-server",
+  "displayName": "Visual Server",
+  "description": "Visual Docker management for Antigravity IDE",
+  "version": "2.3.0",
   "publisher": "antigravity",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thorello/visual_docker_antigravity_extension"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
   "main": "./out/extension.js",
-  "activationEvents": [],
+  "activationEvents": [
+    "*"
+  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
