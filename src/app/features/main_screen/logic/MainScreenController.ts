@@ -60,6 +60,22 @@ export class MainScreenController {
                         await this.sshService.executeCommand(`sudo docker start ${message.containerId}`);
                         this.refreshDocker();
                         break;
+                    case 'restartContainer':
+                        await this.sshService.executeCommand(`sudo docker restart ${message.containerId}`);
+                        this.refreshDocker();
+                        break;
+                    case 'removeContainer':
+                        await this.sshService.executeCommand(`sudo docker rm -f ${message.containerId}`);
+                        this.refreshDocker();
+                        break;
+                    case 'restartService':
+                        await this.sshService.executeCommand(`sudo docker service update --force ${message.serviceName}`);
+                        this.refreshSwarmServices();
+                        break;
+                    case 'removeService':
+                        await this.sshService.executeCommand(`sudo docker service rm ${message.serviceName}`);
+                        this.refreshSwarmServices();
+                        break;
                     case 'scaleService':
                         await this.sshService.executeCommand(`sudo docker service scale ${message.serviceName}=${message.replicas}`);
                         this.refreshSwarmServices();
@@ -100,8 +116,22 @@ export class MainScreenController {
         if (!this.sshService.isConnected) return;
 
         try {
+            const inspect = await this.sshService.executeCommand(`sudo docker inspect ${containerId} --format '{{.Id}}|{{.Config.Image}}|{{.State.Status}}'`);
+            const [fullId, image, status] = inspect.trim().split('|');
+            
             const output = await this.sshService.executeCommand(`sudo docker logs --tail 500 ${containerId}`);
-            this._panel.webview.postMessage({ command: 'containerLogs', containerId, data: output });
+            this._panel.webview.postMessage({ 
+                command: 'containerLogs', 
+                containerId, 
+                data: output,
+                metadata: {
+                    name: containerName || containerId,
+                    id: fullId || containerId,
+                    image: image || 'N/A',
+                    status: status || 'N/A',
+                    type: 'Container'
+                }
+            });
         } catch (err: any) {
             this._panel.webview.postMessage({ command: 'containerLogs', containerId, data: '', error: err.message });
         }
@@ -120,8 +150,23 @@ export class MainScreenController {
         if (!this.sshService.isConnected) return;
 
         try {
+            const inspect = await this.sshService.executeCommand(`sudo docker inspect ${taskId} --format '{{.ID}}|{{.Spec.ContainerSpec.Image}}|{{.Status.State}}|{{.NodeID}}'`);
+            const [fullId, image, state, nodeId] = inspect.trim().split('|');
+
             const output = await this.sshService.executeCommand(`sudo docker service logs --tail 200 ${taskId}`);
-            this._panel.webview.postMessage({ command: 'workerLogs', taskId, data: output });
+            this._panel.webview.postMessage({ 
+                command: 'workerLogs', 
+                taskId, 
+                data: output,
+                metadata: {
+                    name: workerName || taskId,
+                    id: fullId || taskId,
+                    image: image || 'N/A',
+                    status: state || 'N/A',
+                    node: nodeId || 'N/A',
+                    type: 'Worker (Swarm Task)'
+                }
+            });
         } catch (err: any) {
             this._panel.webview.postMessage({ command: 'workerLogs', taskId, data: '', error: err.message });
         }
@@ -342,7 +387,7 @@ export class MainScreenController {
                             </vscode-panel-view>
 
                             <vscode-panel-view id="view-logs">
-                                <section class="docker-section logs-section" id="logs-section">
+                                <section class="docker-section logs-section maximized" id="logs-section">
                                     <div class="logs-header-inline">
                                         <div class="logs-title-group">
                                             <h2 id="logs-title">Logs</h2>
@@ -362,6 +407,9 @@ export class MainScreenController {
                                             </vscode-button>
                                         </div>
                                     </div>
+                                    <div id="logs-info-banner" class="logs-info-banner hidden">
+                                        <!-- Metadata injected here -->
+                                    </div>
                                     <div class="logs-terminal-container">
                                         <pre id="logs-content">Selecione um container ou worker para visualizar os logs...</pre>
                                     </div>
@@ -370,6 +418,10 @@ export class MainScreenController {
                         </vscode-panels>
                     </div>
                 </div>
+
+                <!-- Confirmation Modal -->
+                <div id="modal-container"></div>
+
                 <script src="${scriptUri}"></script>
             </body>
             </html>`;
