@@ -3,6 +3,7 @@ const vscode = acquireVsCodeApi();
 // State
 let allContainers = [];
 let allServices = [];
+let rawRecentItems = [];
 let originalLogs = '';
 let isClientConnected = false;
 
@@ -17,10 +18,12 @@ const connectionStatus = document.getElementById('connection-status');
 const swarmStatus = document.getElementById('swarm-status');
 const containerSearch = document.getElementById('container-search');
 const swarmSearch = document.getElementById('swarm-search');
+const recentSearch = document.getElementById('recent-search');
 const logsContent = document.getElementById('logs-content');
 const logsTitle = document.getElementById('logs-title');
 const logsFilter = document.getElementById('logs-filter');
 const logsSection = document.getElementById('logs-section');
+const intervalSelect = document.getElementById('log-interval-select');
 const btnMaximize = document.getElementById('btn-maximize-logs');
 const maximizeIcon = document.getElementById('maximize-icon');
 const mainPanels = document.querySelector('vscode-panels');
@@ -39,7 +42,7 @@ document.getElementById('btn-copy-logs').onclick = () => {
 
 document.getElementById('btn-clear-logs').onclick = () => {
      originalLogs = '';
-    logsContent.innerText = 'Logs limpos.';
+    logsContent.innerHTML = highlightLogs('Logs limpos.');
 };
 
 btnMaximize.onclick = () => {
@@ -60,15 +63,129 @@ logsFilter.addEventListener('input', (e) => {
 });
 
 function applyLogsFilter(term) {
-    if (!term) {
-        logsContent.innerText = originalLogs;
-    } else {
+    const intervalSelect = document.getElementById('log-interval-select');
+    const intervalMinutes = parseInt(intervalSelect?.value || '5');
+
+    let filteredText = originalLogs;
+    if (term) {
         const lines = originalLogs.split('\n');
-        const filteredLines = lines.filter(line => line.toLowerCase().includes(term));
-        logsContent.innerText = filteredLines.join('\n') || 'Nenhum resultado para o filtro.';
+        filteredText = lines.filter(line => line.toLowerCase().includes(term)).join('\n');
     }
+
+    if (!filteredText) {
+        logsContent.innerHTML = term 
+            ? '<div class="empty-small" style="padding: 20px; text-align: center; opacity: 0.5;">Nenhum resultado para o filtro.</div>'
+            : highlightLogs('Aguardando logs...');
+        return;
+    }
+
+    const groups = groupLogsByTime(filteredText, intervalMinutes);
+    logsContent.innerHTML = renderGroupedLogs(groups);
     logsContent.scrollTop = logsContent.scrollHeight;
 }
+
+function highlightLogs(text) {
+    if (!text) return '';
+    
+    // Escapar HTML para evitar XSS e quebra de tags
+    let escaped = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+    // Regras de destaque
+    const rules = [
+        { pattern: /\b(ERROR|ERR|ERR!|CRITICAL|CRIT|FATAL|Exception|Error:)\b/gi, class: 'log-error' },
+        { pattern: /\b(WARNING|WARN|WARN!)\b/gi, class: 'log-warning' },
+        { pattern: /\b(INFO|STDOUT)\b/gi, class: 'log-info' },
+        { pattern: /\b(DEBUG|TRACE)\b/gi, class: 'log-debug' },
+        { pattern: /\b(SUCCESS|OK|CONNECTED|UP|RUNNING|STARTING|STARTED)\b/gi, class: 'log-success' },
+        // Timestamps (Padrão simples para 2024-..., 09:12:33, etc)
+        { pattern: /(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)/g, class: 'log-timestamp' },
+        { pattern: /(\d{2}:\d{2}:\d{2}(?:\.\d+)?)/g, class: 'log-timestamp' }
+    ];
+
+    let highlighted = escaped;
+    rules.forEach(rule => {
+        highlighted = highlighted.replace(rule.pattern, match => `<span class="${rule.class}">${match}</span>`);
+    });
+
+    return highlighted;
+}
+
+function renderGroupedLogs(groups) {
+    if (!groups || groups.length === 0) {
+         return '<div class="empty-small" style="padding: 20px; text-align: center; opacity: 0.5;">Sem logs para exibir.</div>';
+    }
+
+    return groups.map((group, idx) => {
+        const timeStr = group.startTime ? new Date(group.startTime).toLocaleTimeString() : 'Início';
+        return `
+            <div class="log-group-separator">
+                <vscode-button appearance="icon" title="Copiar este intervalo" onclick="copyLogSegment(${idx})">
+                    <span class="codicon codicon-copy"></span>
+                </vscode-button>
+                <span class="log-group-time">${timeStr}</span>
+                <div class="separator-line"></div>
+            </div>
+            <div class="log-segment-content" id="log-segment-${idx}">${highlightLogs(group.lines.join('\n'))}</div>
+        `;
+    }).join('');
+}
+
+window.copyLogSegment = (idx) => {
+    const segment = document.getElementById(`log-segment-${idx}`);
+    if (segment) {
+        navigator.clipboard.writeText(segment.innerText);
+    }
+};
+
+function groupLogsByTime(logs, intervalMinutes) {
+    if (!logs) return [];
+    const lines = logs.split('\n');
+    const groups = [];
+    let currentGroup = { startTime: null, lines: [] };
+    const intervalMs = intervalMinutes * 60 * 1000;
+
+    lines.forEach(line => {
+        if (!line.trim()) return;
+        
+        const match = line.match(/^(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)/);
+        let timestamp = null;
+        if (match) {
+            timestamp = new Date(match[1]).getTime();
+        }
+
+        if (timestamp) {
+            if (!currentGroup.startTime) {
+                currentGroup.startTime = timestamp;
+                currentGroup.lines.push(line);
+            } else if (Math.abs(timestamp - currentGroup.startTime) < intervalMs) {
+                currentGroup.lines.push(line);
+            } else {
+                groups.push(currentGroup);
+                currentGroup = { startTime: timestamp, lines: [line] };
+            }
+        } else {
+            currentGroup.lines.push(line);
+        }
+    });
+
+    if (currentGroup.lines.length > 0) {
+        groups.push(currentGroup);
+    }
+
+    return groups;
+}
+
+// Event listener para mudança de intervalo
+document.addEventListener('change', (e) => {
+    if (e.target.id === 'log-interval-select') {
+        applyLogsFilter(logsFilter.value);
+    }
+});
 
 // Message Listener
 window.addEventListener('message', event => {
@@ -88,11 +205,18 @@ window.addEventListener('message', event => {
         case 'workerLogs':
         case 'containerLogs':
             originalLogs = message.error ? `Erro: ${message.error}` : (message.data || '');
-            if (message.metadata) renderLogsMetadata(message.metadata);
+            if (message.metadata) {
+                renderLogsMetadata(message.metadata);
+                const serverInfo = message.metadata.serverAlias 
+                    ? `<b>${message.metadata.serverAlias}</b> (${message.metadata.serverHost})`
+                    : `<b>${message.metadata.serverHost}</b>`;
+                logsTitle.innerHTML = `<span style="opacity: 0.7;">Logs:</span> ${message.metadata.name} <span style="margin: 0 15px; opacity: 0.3;">|</span> <small style="font-weight: 500; font-size: 0.75rem; text-transform: none; letter-spacing: normal;">Servidor: ${serverInfo}</small>`;
+            }
             applyLogsFilter(logsFilter.value);
             break;
         case 'recentList':
             isClientConnected = message.isConnected;
+            updateMainTitle(message.serverAlias, message.serverHost);
             renderRecentList(message.data || []);
             updateTabs();
             break;
@@ -106,6 +230,22 @@ window.addEventListener('message', event => {
     }
 });
 
+function updateMainTitle(alias, host) {
+    const titleEl = document.getElementById('main-title');
+    if (!titleEl) return;
+
+    if (isClientConnected && (alias || host)) {
+        titleEl.innerHTML = `
+            <div class="server-title">
+                <span class="server-alias">${alias || 'Servidor'}</span>
+                <span class="server-host">${host}</span>
+            </div>
+        `;
+    } else {
+        titleEl.innerHTML = 'Visual Docker';
+    }
+}
+
 function renderLogsMetadata(meta) {
     const banner = document.getElementById('logs-info-banner');
     if (!banner) return;
@@ -113,28 +253,24 @@ function renderLogsMetadata(meta) {
     banner.classList.remove('hidden');
     banner.innerHTML = `
         <div class="info-item">
-            <span class="info-label">Tipo</span>
+            <span class="info-label">TIPO</span>
             <span class="info-value">${meta.type}</span>
         </div>
-        <div class="info-item">
-            <span class="info-label">Nome</span>
-            <span class="info-value">${meta.name}</span>
-        </div>
-        <div class="info-item">
+        <div class="info-item" title="${meta.id}">
             <span class="info-label">ID</span>
-            <span class="info-value">${meta.id.substring(0, 12)}</span>
+            <span class="info-value">${meta.id.substring(0, 8)}</span>
+        </div>
+        <div class="info-item" title="${meta.image}">
+            <span class="info-label">IMAGEM</span>
+            <span class="info-value">${meta.image.length > 30 ? meta.image.substring(0, 30) + '...' : meta.image}</span>
         </div>
         <div class="info-item">
-            <span class="info-label">Imagem</span>
-            <span class="info-value">${meta.image}</span>
-        </div>
-        <div class="info-item">
-            <span class="info-label">Status</span>
+            <span class="info-label">STATUS</span>
             <span class="info-value">${meta.status}</span>
         </div>
         ${meta.node ? `
         <div class="info-item">
-            <span class="info-label">Node</span>
+            <span class="info-label">NODE</span>
             <span class="info-value">${meta.node}</span>
         </div>` : ''}
     `;
@@ -500,7 +636,7 @@ function showLogs(id, type, node = null, name = '') {
     }
     
     logsTitle.innerText = `Logs: ${name || id}`;
-    logsContent.innerText = `Buscando logs de ${name || id}...`;
+    logsContent.innerHTML = highlightLogs(`Buscando logs de ${name || id}...`);
     
     if (type === 'container') {
         vscode.postMessage({ command: 'getContainerLogs', containerId: id, containerName: name });
@@ -513,32 +649,64 @@ function showLogs(id, type, node = null, name = '') {
 
 function renderRecentList(recent) {
     if (!recentList) return;
+    rawRecentItems = recent;
 
     if (recent.length === 0) {
         recentList.innerHTML = '<div class="empty-state">Nenhum acesso recente registrado.</div>';
         return;
     }
 
-    recentList.innerHTML = recent.map(item => `
-        <div class="docker-card recent-card ${!isClientConnected ? 'disconnected-recent' : ''}" 
-             data-id="${item.id}" 
-             data-type="${item.type}" 
-             data-node="${item.node || ''}"
-             data-server-id="${item.serverId}">
-            <div class="card-info">
-                <span class="container-name">${item.name}</span>
-                <span class="server-badge"><span class="codicon codicon-link"></span> ${item.serverLabel || 'Desconhecido'}</span>
-                <div class="service-meta" style="margin-top: 8px;">
-                    <span class="type-tag">${item.type === 'container' ? 'Container' : 'Worker'}</span>
-                    ${item.node ? `<span class="worker-node"><span class="codicon codicon-server"></span> ${item.node}</span>` : ''}
+    // Grouping by server
+    const grouped = {};
+    recent.forEach(item => {
+        if (!grouped[item.serverId]) {
+            grouped[item.serverId] = {
+                alias: item.serverAlias,
+                host: item.serverHost,
+                label: item.serverLabel,
+                items: []
+            };
+        }
+        grouped[item.serverId].items.push(item);
+    });
+
+    recentList.innerHTML = Object.keys(grouped).map(serverId => {
+        const group = grouped[serverId];
+        const displayLabel = group.alias 
+            ? `<b>${group.alias}</b> <small style="opacity: 0.6; margin-left: 5px;">(${group.host})</small>` 
+            : `<b>${group.host}</b>`;
+
+        return `
+            <div class="recent-server-group">
+                <div class="server-group-header">
+                    <span class="codicon codicon-server"></span>
+                    <span>${displayLabel}</span>
+                </div>
+                <div class="server-group-items">
+                    ${group.items.map(item => `
+                        <div class="docker-card recent-card ${!isClientConnected ? 'disconnected-recent' : ''}" 
+                             data-id="${item.id}" 
+                             data-type="${item.type}" 
+                             data-node="${item.node || ''}"
+                             data-server-id="${item.serverId}">
+                            <div class="card-main">
+                                <div class="card-info">
+                                    <span class="container-name">${item.name}</span>
+                                    <div class="service-meta" style="margin-top: 4px;">
+                                        <span class="type-tag">${item.type === 'container' ? 'Container' : 'Worker'}</span>
+                                        ${item.node ? `<span class="worker-node"><span class="codicon codicon-server"></span> ${item.node}</span>` : ''}
+                                    </div>
+                                </div>
+                                <div class="card-actions">
+                                    <span class="codicon codicon-history"></span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
                 </div>
             </div>
-            <div class="card-actions">
-                <span class="codicon codicon-history"></span>
-            </div>
-        </div>
-    `).join('');
-
+        `;
+    }).join('');
 
     document.querySelectorAll('.recent-card').forEach(card => {
         card.onclick = () => {
@@ -560,6 +728,18 @@ function renderRecentList(recent) {
         };
     });
 }
+
+// Recent search
+recentSearch.addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase();
+    const filtered = rawRecentItems.filter(item => 
+        item.name.toLowerCase().includes(term) || 
+        (item.serverLabel && item.serverLabel.toLowerCase().includes(term)) ||
+        (item.serverAlias && item.serverAlias.toLowerCase().includes(term)) ||
+        (item.serverHost && item.serverHost.toLowerCase().includes(term))
+    );
+    renderRecentList(filtered);
+});
 
 
 

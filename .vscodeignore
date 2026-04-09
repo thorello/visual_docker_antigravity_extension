@@ -1,8 +1,11 @@
 .vscode/**
 .vscode-test/**
 src/**
-node_modules/**
 scenarios/**
 **/*.map
 **/*.ts
 !out/**
+!src/app/features/**/presentation/**
+!src/app/features/activitybar_icon/assets/**
+!src/app/core/assets/**
+

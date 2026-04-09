@@ -6,7 +6,7 @@ import { StorageService } from './app/core/StorageService';
 import { SshService } from './app/core/SshService';
 import { TerminalController } from './app/core/TerminalController';
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
     console.log('Antigravity Extension Blueprint is active!');
 
     const storageService = new StorageService(context);
@@ -14,7 +14,15 @@ export function activate(context: vscode.ExtensionContext) {
     const fsProvider = new FileSystemProvider(context, storageService);
     vscode.workspace.registerFileSystemProvider('antigravity-fs', fsProvider, { isCaseSensitive: true });
 
-    const sidebarProvider = new SidebarWebviewProvider(context.extensionUri, sshService, storageService);
+    const versionPath = vscode.Uri.joinPath(context.extensionUri, '.version');
+    let version = 'v1.0.0';
+    try {
+        const versionData = await vscode.workspace.fs.readFile(versionPath);
+        version = new TextDecoder().decode(versionData).trim();
+    } catch (e) {
+        version = context.extension.packageJSON.version;
+    }
+    const sidebarProvider = new SidebarWebviewProvider(context.extensionUri, sshService, storageService, version);
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(SidebarWebviewProvider.viewType, sidebarProvider)
     );

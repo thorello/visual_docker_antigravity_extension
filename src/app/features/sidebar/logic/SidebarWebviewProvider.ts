@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { StorageService } from '../../../core/StorageService';
 import { SshService } from '../../../core/SshService';
+import { MainScreenController } from '../../main_screen/logic/MainScreenController';
 
 export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'antigravity-sidebar-view';
@@ -9,7 +10,8 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly _sshService: SshService,
-        private readonly _storageService: StorageService
+        private readonly _storageService: StorageService,
+        private readonly _extensionVersion: string
     ) {}
 
     public resolveWebviewView(
@@ -35,17 +37,33 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
                     webviewView.webview.postMessage({ type: 'loadServers', value: servers });
                     break;
                 }
+                case 'requestRecent': {
+                    const recent = this._storageService.getRecentItems();
+                    webviewView.webview.postMessage({ type: 'loadRecent', value: recent });
+                    break;
+                }
                 case 'connectServer': {
                     const server = data.value;
                     this._connectToServer(server);
                     break;
                 }
+                case 'connectRecent': {
+                    const { serverId, serverLabel, type, id, name } = data.value;
+                    const servers = await this._storageService.getServers();
+                    const server = servers.find(s => s.id === serverId);
+                    if (server) {
+                        await this._connectToServer(server);
+                        // Optional: trigger specific action on connect (e.g. open log of that container)
+                    }
+                    break;
+                }
                 case 'saveAndConnect': {
-                    const { host, port, username, password } = data.value;
-                    const serverId = `ssh-${host}-${port}-${username}`;
+                    const { id, alias, host, port, username, password } = data.value;
+                    const serverId = id || `ssh-${host}-${port}-${username}`;
                     const server = { 
                         id: serverId,
-                        label: host,
+                        label: alias || host,
+                        alias,
                         host, 
                         port: parseInt(port), 
                         username, 
@@ -68,16 +86,23 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
     private async _connectToServer(server: any) {
         vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
-            title: `Conectando a ${server.host}...`,
+            title: `Conectando a ${server.alias || server.host}...`,
             cancellable: false
         }, async (progress) => {
             try {
                 await this._sshService.connect(server);
-                vscode.window.showInformationMessage(`Conectado com sucesso a ${server.host}`);
+                vscode.window.showInformationMessage(`Conectado com sucesso a ${server.alias || server.host}`);
                 
                 // Open Main Screen and Terminal
                 vscode.commands.executeCommand('antigravity.openMainScreen');
-                vscode.commands.executeCommand('antigravity.openTerminal', server.label || server.host);
+                
+                // Switch to containers tab specifically
+                if (MainScreenController.currentPanel) {
+                    MainScreenController.currentPanel.refreshDocker();
+                    MainScreenController.currentPanel.showTab('tab-containers');
+                }
+                
+                vscode.commands.executeCommand('antigravity.openTerminal', server.alias || server.host);
             } catch (err: any) {
                 vscode.window.showErrorMessage(`Falha na conexão: ${err.message}`);
             }
@@ -100,6 +125,10 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
 				<title>SSH Sidebar</title>
 			</head>
 			<body>
+                <header class="extension-header">
+                    <span class="extension-name">Visual Docker</span>
+                    <span class="extension-version">${this._extensionVersion}</span>
+                </header>
 				<!-- List Screen -->
                 <div id="list-screen" class="screen">
                     <header class="list-header">
@@ -120,10 +149,14 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
                             <vscode-button id="backToListBtn" appearance="icon">
                                 <span class="codicon codicon-arrow-left"></span>
                             </vscode-button>
-						    <h2>Nova Conexão</h2>
+						    <h2 id="form-title">Nova Conexão</h2>
                         </div>
 						<p>Configure os detalhes do servidor SSH.</p>
 					</header>
+
+					<div class="form-group">
+						<vscode-text-field id="alias" placeholder="ex: Servidor de Produção">Apelido (Opcional)</vscode-text-field>
+					</div>
 
 					<div class="form-group">
 						<vscode-text-field id="host" placeholder="ex: 192.168.1.10">Host / IP</vscode-text-field>
@@ -140,6 +173,8 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
 					<div class="form-group">
 						<vscode-text-field id="password" type="password">Senha</vscode-text-field>
 					</div>
+
+                    <input type="hidden" id="serverId">
 
 					<div class="actions">
 						<vscode-button id="saveConnectBtn" appearance="primary">Salvar e Conectar</vscode-button>

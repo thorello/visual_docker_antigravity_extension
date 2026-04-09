@@ -52,6 +52,32 @@ body {
     color: var(--text-color);
 }
 
+.server-title {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+}
+
+.server-alias {
+    font-size: 1.25rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.server-host {
+    font-size: 0.65rem;
+    font-weight: 500;
+    opacity: 0.5;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    font-family: var(--vscode-editor-font-family, 'Courier New', Courier, monospace);
+}
+
 .main-content {
     padding: 1.5rem;
     max-width: calc(100vw - 3rem); /* Prevenção de vazamento garantida */
@@ -95,14 +121,6 @@ body {
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    width: 100%;
-}
-
-.recent-grid {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1.25rem;
-    padding-bottom: 2.5rem;
     width: 100%;
 }
 
@@ -394,9 +412,42 @@ body {
     gap: 8px;
 }
 
-/* Recent Cards */
+/* Recent Section Grouping */
+.recent-server-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.server-group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent-color);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-left: 4px;
+    opacity: 0.8;
+}
+
+.server-group-items {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.recent-vertical {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 20px;
+}
+
 .recent-card {
-    background: linear-gradient(145deg, rgba(45, 45, 48, 0.6) 0%, rgba(209, 134, 22, 0.05) 100%);
+    background: linear-gradient(145deg, rgba(45, 45, 48, 0.4) 0%, rgba(209, 134, 22, 0.03) 100%);
+    max-width: 100% !important; /* Em modo vertical, ocupa toda largura disponível ou max do container */
 }
 
 .recent-card::after {
@@ -404,8 +455,8 @@ body {
 }
 
 .recent-card .codicon-history {
-    opacity: 0.2;
-    font-size: 1.8rem;
+    opacity: 0.15;
+    font-size: 1.5rem;
     position: absolute;
     right: 1.25rem;
     top: 50%;
@@ -414,19 +465,9 @@ body {
 }
 
 .recent-card:hover .codicon-history {
-    opacity: 0.8;
-    transform: translateY(-50%) scale(1.1) rotate(-10deg);
+    opacity: 0.7;
+    transform: translateY(-50%) scale(1.1);
     color: #d18616;
-}
-
-.server-badge {
-    font-size: 0.7rem;
-    color: #4daafc;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin: 4px 0;
-    font-weight: 600;
 }
 
 .type-tag {
@@ -434,9 +475,10 @@ body {
     font-weight: 800;
     padding: 2px 8px;
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
     color: #e0e0e0;
     text-transform: uppercase;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Logs Terminal Styling */
@@ -454,18 +496,39 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 1.5rem;
-    background: rgba(255, 255, 255, 0.03);
+    padding: 0.5rem 1.5rem; /* Padding reduzido significativamente */
+    background: rgba(255, 255, 255, 0.02);
     border-bottom: 1px solid var(--border-color);
+}
+
+.logs-title-group {
+    display: flex;
+    flex-direction: row; /* Título e filtro na mesma linha se houver espaço */
+    align-items: center;
+    gap: 20px;
+    flex-grow: 1;
+}
+
+.logs-filter-row {
+    width: auto;
+    min-width: 250px;
 }
 
 .logs-title-group h2 {
     margin: 0;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-weight: 800;
     color: var(--accent-color);
     text-transform: uppercase;
     letter-spacing: 0.1em;
+}
+
+.logs-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    flex-wrap: nowrap; /* Ícones sempre lado a lado */
 }
 
 .logs-terminal-container {
@@ -479,12 +542,8 @@ body {
 }
 
 #logs-content {
-    padding: 1.5rem;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
-    font-size: 0.85rem;
-    line-height: 1.6;
-    color: #e0e0e0;
-    white-space: pre;
+    padding: 0; 
+    margin: 0;
     width: fit-content;
     min-width: 100%;
 }
@@ -562,6 +621,77 @@ vscode-panel-tab[aria-selected="true"] {
     background: rgba(0, 122, 204, 0.1) !important;
 }
 
+/* Log Syntax Highlighting */
+.log-error {
+    color: #f48771;
+    font-weight: 700;
+}
+
+.log-warning {
+    color: #cca700;
+    font-weight: 700;
+}
+
+.log-info {
+    color: #75beff;
+    font-weight: 600;
+}
+
+.log-debug {
+    color: #b180d7;
+    opacity: 0.9;
+}
+
+.log-success {
+    color: #4ec9b0;
+    font-weight: 700;
+}
+
+.log-timestamp {
+    color: #6a9955;
+    opacity: 0.8;
+}
+
+/* Log Grouping Styles */
+.log-group-separator {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 4px 0 0 0; /* Margem mínima no topo */
+    padding: 0 16px;
+}
+
+.log-group-time {
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: var(--accent-color);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+    opacity: 0.8;
+}
+
+.separator-line {
+    flex-grow: 1;
+    height: 1px;
+    background: linear-gradient(to right, var(--border-color), transparent);
+}
+
+.log-segment-content {
+    white-space: pre;
+    padding: 2px 16px 2px 52px; /* Padding vertical mínimo */
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.3; /* Line-height compacto para densidade de dados */
+    color: #d0d0d0;
+}
+
+#log-interval-select {
+    min-width: 100px;
+    margin-right: 12px;
+}
+
 /* Confirmation Modal */
 .modal-overlay {
     position: fixed;
@@ -620,32 +750,36 @@ vscode-panel-tab[aria-selected="true"] {
 
 /* Logs Metadata */
 .logs-info-banner {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.02);
     border-bottom: 1px solid var(--border-color);
-    padding: 0.75rem 1.5rem;
+    padding: 0.4rem 1.5rem; /* Padding reduzido */
     display: flex;
     flex-wrap: wrap;
-    gap: 1.5rem;
+    column-gap: 2rem;
+    row-gap: 0.5rem;
     font-size: 0.7rem;
 }
 
 .info-item {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    align-items: center; /* Alinhamento horizontal para economizar espaço */
+    gap: 8px;
 }
 
 .info-label {
     text-transform: uppercase;
     font-weight: 800;
-    color: var(--text-muted);
+    color: var(--accent-color);
     font-size: 0.6rem;
     letter-spacing: 0.05em;
+    opacity: 0.7;
 }
 
 .info-value {
     color: #fff;
     font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 500;
 }
 
 /* Scale Control */
@@ -690,11 +824,11 @@ vscode-panel-tab[aria-selected="true"] {
 /* Maximized Logs Logic */
 .logs-section.maximized {
     position: fixed;
-    top: 60px; /* Header height */
+    top: 60px; /* Reduzido o topo para os logs subirem o máximo possível */
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 1500;
+    z-index: 1000;
     height: auto;
     width: 100vw;
     border-radius: 0;
