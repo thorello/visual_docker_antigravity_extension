@@ -23,6 +23,7 @@ const logsContent = document.getElementById('logs-content');
 const logsTitle = document.getElementById('logs-title');
 const logsFilter = document.getElementById('logs-filter');
 const logsSection = document.getElementById('logs-section');
+const intervalSelect = document.getElementById('log-interval-select');
 const btnMaximize = document.getElementById('btn-maximize-logs');
 const maximizeIcon = document.getElementById('maximize-icon');
 const mainPanels = document.querySelector('vscode-panels');
@@ -41,7 +42,7 @@ document.getElementById('btn-copy-logs').onclick = () => {
 
 document.getElementById('btn-clear-logs').onclick = () => {
      originalLogs = '';
-    logsContent.innerText = 'Logs limpos.';
+    logsContent.innerHTML = highlightLogs('Logs limpos.');
 };
 
 btnMaximize.onclick = () => {
@@ -62,15 +63,129 @@ logsFilter.addEventListener('input', (e) => {
 });
 
 function applyLogsFilter(term) {
-    if (!term) {
-        logsContent.innerText = originalLogs;
-    } else {
+    const intervalSelect = document.getElementById('log-interval-select');
+    const intervalMinutes = parseInt(intervalSelect?.value || '5');
+
+    let filteredText = originalLogs;
+    if (term) {
         const lines = originalLogs.split('\n');
-        const filteredLines = lines.filter(line => line.toLowerCase().includes(term));
-        logsContent.innerText = filteredLines.join('\n') || 'Nenhum resultado para o filtro.';
+        filteredText = lines.filter(line => line.toLowerCase().includes(term)).join('\n');
     }
+
+    if (!filteredText) {
+        logsContent.innerHTML = term 
+            ? '<div class="empty-small" style="padding: 20px; text-align: center; opacity: 0.5;">Nenhum resultado para o filtro.</div>'
+            : highlightLogs('Aguardando logs...');
+        return;
+    }
+
+    const groups = groupLogsByTime(filteredText, intervalMinutes);
+    logsContent.innerHTML = renderGroupedLogs(groups);
     logsContent.scrollTop = logsContent.scrollHeight;
 }
+
+function highlightLogs(text) {
+    if (!text) return '';
+    
+    // Escapar HTML para evitar XSS e quebra de tags
+    let escaped = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+    // Regras de destaque
+    const rules = [
+        { pattern: /\b(ERROR|ERR|ERR!|CRITICAL|CRIT|FATAL|Exception|Error:)\b/gi, class: 'log-error' },
+        { pattern: /\b(WARNING|WARN|WARN!)\b/gi, class: 'log-warning' },
+        { pattern: /\b(INFO|STDOUT)\b/gi, class: 'log-info' },
+        { pattern: /\b(DEBUG|TRACE)\b/gi, class: 'log-debug' },
+        { pattern: /\b(SUCCESS|OK|CONNECTED|UP|RUNNING|STARTING|STARTED)\b/gi, class: 'log-success' },
+        // Timestamps (Padrão simples para 2024-..., 09:12:33, etc)
+        { pattern: /(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)/g, class: 'log-timestamp' },
+        { pattern: /(\d{2}:\d{2}:\d{2}(?:\.\d+)?)/g, class: 'log-timestamp' }
+    ];
+
+    let highlighted = escaped;
+    rules.forEach(rule => {
+        highlighted = highlighted.replace(rule.pattern, match => `<span class="${rule.class}">${match}</span>`);
+    });
+
+    return highlighted;
+}
+
+function renderGroupedLogs(groups) {
+    if (!groups || groups.length === 0) {
+         return '<div class="empty-small" style="padding: 20px; text-align: center; opacity: 0.5;">Sem logs para exibir.</div>';
+    }
+
+    return groups.map((group, idx) => {
+        const timeStr = group.startTime ? new Date(group.startTime).toLocaleTimeString() : 'Início';
+        return `
+            <div class="log-group-separator">
+                <vscode-button appearance="icon" title="Copiar este intervalo" onclick="copyLogSegment(${idx})">
+                    <span class="codicon codicon-copy"></span>
+                </vscode-button>
+                <span class="log-group-time">${timeStr}</span>
+                <div class="separator-line"></div>
+            </div>
+            <div class="log-segment-content" id="log-segment-${idx}">${highlightLogs(group.lines.join('\n'))}</div>
+        `;
+    }).join('');
+}
+
+window.copyLogSegment = (idx) => {
+    const segment = document.getElementById(`log-segment-${idx}`);
+    if (segment) {
+        navigator.clipboard.writeText(segment.innerText);
+    }
+};
+
+function groupLogsByTime(logs, intervalMinutes) {
+    if (!logs) return [];
+    const lines = logs.split('\n');
+    const groups = [];
+    let currentGroup = { startTime: null, lines: [] };
+    const intervalMs = intervalMinutes * 60 * 1000;
+
+    lines.forEach(line => {
+        if (!line.trim()) return;
+        
+        const match = line.match(/^(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)/);
+        let timestamp = null;
+        if (match) {
+            timestamp = new Date(match[1]).getTime();
+        }
+
+        if (timestamp) {
+            if (!currentGroup.startTime) {
+                currentGroup.startTime = timestamp;
+                currentGroup.lines.push(line);
+            } else if (Math.abs(timestamp - currentGroup.startTime) < intervalMs) {
+                currentGroup.lines.push(line);
+            } else {
+                groups.push(currentGroup);
+                currentGroup = { startTime: timestamp, lines: [line] };
+            }
+        } else {
+            currentGroup.lines.push(line);
+        }
+    });
+
+    if (currentGroup.lines.length > 0) {
+        groups.push(currentGroup);
+    }
+
+    return groups;
+}
+
+// Event listener para mudança de intervalo
+document.addEventListener('change', (e) => {
+    if (e.target.id === 'log-interval-select') {
+        applyLogsFilter(logsFilter.value);
+    }
+});
 
 // Message Listener
 window.addEventListener('message', event => {
@@ -121,28 +236,24 @@ function renderLogsMetadata(meta) {
     banner.classList.remove('hidden');
     banner.innerHTML = `
         <div class="info-item">
-            <span class="info-label">Tipo</span>
+            <span class="info-label">TIPO</span>
             <span class="info-value">${meta.type}</span>
         </div>
-        <div class="info-item">
-            <span class="info-label">Nome</span>
-            <span class="info-value">${meta.name}</span>
-        </div>
-        <div class="info-item">
+        <div class="info-item" title="${meta.id}">
             <span class="info-label">ID</span>
-            <span class="info-value">${meta.id.substring(0, 12)}</span>
+            <span class="info-value">${meta.id.substring(0, 8)}</span>
+        </div>
+        <div class="info-item" title="${meta.image}">
+            <span class="info-label">IMAGEM</span>
+            <span class="info-value">${meta.image.length > 30 ? meta.image.substring(0, 30) + '...' : meta.image}</span>
         </div>
         <div class="info-item">
-            <span class="info-label">Imagem</span>
-            <span class="info-value">${meta.image}</span>
-        </div>
-        <div class="info-item">
-            <span class="info-label">Status</span>
+            <span class="info-label">STATUS</span>
             <span class="info-value">${meta.status}</span>
         </div>
         ${meta.node ? `
         <div class="info-item">
-            <span class="info-label">Node</span>
+            <span class="info-label">NODE</span>
             <span class="info-value">${meta.node}</span>
         </div>` : ''}
     `;
@@ -508,7 +619,7 @@ function showLogs(id, type, node = null, name = '') {
     }
     
     logsTitle.innerText = `Logs: ${name || id}`;
-    logsContent.innerText = `Buscando logs de ${name || id}...`;
+    logsContent.innerHTML = highlightLogs(`Buscando logs de ${name || id}...`);
     
     if (type === 'container') {
         vscode.postMessage({ command: 'getContainerLogs', containerId: id, containerName: name });
