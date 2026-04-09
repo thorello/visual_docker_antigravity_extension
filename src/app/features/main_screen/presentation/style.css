@@ -436,6 +436,7 @@ body {
 }
 
 .hidden { display: none !important; }
+.hidden-tab { display: none !important; }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {

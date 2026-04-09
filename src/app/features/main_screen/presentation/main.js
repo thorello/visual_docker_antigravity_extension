@@ -24,6 +24,10 @@ const logsSection = document.getElementById('logs-section');
 const btnMaximize = document.getElementById('btn-maximize-logs');
 const maximizeIcon = document.getElementById('maximize-icon');
 const mainPanels = document.querySelector('vscode-panels');
+const tabContainers = document.getElementById('tab-containers');
+const tabSwarm = document.getElementById('tab-swarm');
+const viewContainers = document.getElementById('view-containers');
+const viewSwarm = document.getElementById('view-swarm');
 
 // Logs Actions
 document.getElementById('btn-copy-logs').onclick = () => {
@@ -82,6 +86,7 @@ window.addEventListener('message', event => {
         case 'recentList':
             isClientConnected = message.isConnected;
             renderRecentList(message.data || []);
+            updateTabs();
             break;
         case 'showTab':
             if (mainPanels) {
@@ -92,6 +97,25 @@ window.addEventListener('message', event => {
 
     }
 });
+function updateTabs() {
+    if (isClientConnected) {
+        tabContainers?.classList.remove('hidden-tab');
+        tabSwarm?.classList.remove('hidden-tab');
+        viewContainers?.classList.remove('hidden');
+        viewSwarm?.classList.remove('hidden');
+    } else {
+        tabContainers?.classList.add('hidden-tab');
+        tabSwarm?.classList.add('hidden-tab');
+        viewContainers?.classList.add('hidden');
+        viewSwarm?.classList.add('hidden');
+        
+        // Se a aba ativa for uma das que foram escondidas, volta para a aba 'recentes'
+        if (mainPanels && (mainPanels.activeid === 'tab-containers' || mainPanels.activeid === 'tab-swarm')) {
+            mainPanels.activeid = 'tab-recent';
+            mainPanels.setAttribute('activeid', 'tab-recent');
+        }
+    }
+}
 
 
 
