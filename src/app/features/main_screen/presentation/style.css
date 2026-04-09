@@ -1,3 +1,7 @@
+* {
+    box-sizing: border-box;
+}
+
 :root {
     --bg-color: var(--vscode-sideBar-background);
     --card-bg: rgba(30, 30, 31, 0.6);
@@ -50,8 +54,10 @@ body {
 
 .main-content {
     padding: 1.5rem;
-    max-width: 90%;
+    max-width: calc(100vw - 3rem); /* Prevenção de vazamento garantida */
+    width: 100%;
     margin: 0 auto;
+    box-sizing: border-box;
 }
 
 .section-header {
@@ -89,6 +95,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    width: 100%;
 }
 
 .recent-grid {
@@ -96,6 +103,11 @@ body {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1.25rem;
     padding-bottom: 2.5rem;
+    width: 100%;
+}
+
+.docker-section {
+    width: 100%;
 }
 
 .filter-container {
@@ -109,7 +121,6 @@ body {
     flex-grow: 1;
 }
 
-/* Card Base Modernizado */
 .docker-card {
     background: var(--card-bg);
     border: 1px solid var(--glass-border);
@@ -123,6 +134,10 @@ body {
     position: relative;
     overflow: hidden;
     backdrop-filter: blur(10px);
+    width: 100%;
+    max-width: 500px;
+    box-sizing: border-box;
+    margin: 0 auto;
 }
 
 .docker-card::after {
@@ -148,6 +163,7 @@ body {
     justify-content: space-between;
     align-items: flex-start;
     width: 100%;
+    min-width: 0;
 }
 
 .card-info {
@@ -156,6 +172,7 @@ body {
     gap: 4px;
     flex-grow: 1;
     min-width: 0;
+    overflow: hidden;
 }
 
 .container-name {
@@ -165,6 +182,8 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: block;
+    width: 100%;
 }
 
 .container-image {
@@ -175,6 +194,8 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     opacity: 0.7;
+    display: block;
+    width: 100%;
 }
 
 /* Status Pills */
@@ -247,6 +268,9 @@ body {
     gap: 10px;
     align-items: center;
     margin-top: 6px;
+    min-width: 0;
+    overflow: hidden;
+    max-width: 100%;
 }
 
 /* Workers / Tasks Section */
@@ -287,18 +311,23 @@ body {
     flex-direction: column;
     gap: 6px;
     flex-grow: 1;
+    min-width: 0;
 }
 
 .worker-main {
     display: flex;
     gap: 12px;
     align-items: center;
+    min-width: 0;
 }
 
 .worker-id {
     font-weight: 600;
     font-size: 0.9rem;
     color: #f0f0f0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .worker-node {
@@ -311,12 +340,23 @@ body {
     align-items: center;
     gap: 5px;
     font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
 }
 
 .worker-status-line {
     display: flex;
     gap: 16px;
     font-size: 0.75rem;
+    min-width: 0;
+}
+
+.task-state, .task-desired {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .state-running {
@@ -415,7 +455,7 @@ body {
     border-radius: var(--radius-md);
     border: 1px solid rgba(255,255,255,0.05);
     box-shadow: inset 0 4px 20px rgba(0,0,0,0.6);
-    overflow: hidden;
+    overflow: auto;
 }
 
 #logs-content {
@@ -424,6 +464,9 @@ body {
     font-size: 0.85rem;
     line-height: 1.6;
     color: #e0e0e0;
+    white-space: pre;
+    width: fit-content;
+    min-width: 100%;
 }
 
 /* Generic States */
