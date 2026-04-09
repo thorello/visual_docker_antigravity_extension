@@ -24,7 +24,10 @@ export class MainScreenController {
             vscode.ViewColumn.One,
             {
                 enableScripts: true,
-                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'src', 'app', 'features', 'main_screen', 'presentation')]
+                localResourceRoots: [
+                    vscode.Uri.joinPath(extensionUri, 'src', 'app', 'features', 'main_screen', 'presentation'),
+                    vscode.Uri.joinPath(extensionUri, 'node_modules', '@vscode', 'codicons', 'dist')
+                ]
             }
         );
 
@@ -226,6 +229,7 @@ export class MainScreenController {
                         <vscode-panels activeid="tab-containers">
                             <vscode-panel-tab id="tab-containers">CONTAINERS</vscode-panel-tab>
                             <vscode-panel-tab id="tab-swarm">SERVIÇOS (SWARM)</vscode-panel-tab>
+                            <vscode-panel-tab id="tab-logs">LOGS</vscode-panel-tab>
                             
                             <vscode-panel-view id="view-containers">
                                 <section class="docker-section">
@@ -257,6 +261,33 @@ export class MainScreenController {
                                     </div>
                                     <div id="swarm-list" class="docker-list">
                                         <div class="loading">Carregando serviços...</div>
+                                    </div>
+                                </section>
+                            </vscode-panel-view>
+
+                            <vscode-panel-view id="view-logs">
+                                <section class="docker-section logs-section" id="logs-section">
+                                    <div class="logs-header-inline">
+                                        <div class="logs-title-group">
+                                            <h2 id="logs-title">Logs</h2>
+                                            <vscode-text-field id="logs-filter" placeholder="Filtrar logs..." size="30">
+                                                <span slot="start" class="codicon codicon-search"></span>
+                                            </vscode-text-field>
+                                        </div>
+                                        <div class="logs-actions">
+                                            <vscode-button id="btn-copy-logs" appearance="icon" title="Copiar Logs">
+                                                <span class="codicon codicon-copy"></span>
+                                            </vscode-button>
+                                            <vscode-button id="btn-clear-logs" appearance="icon" title="Limpar Logs">
+                                                <span class="codicon codicon-trash"></span>
+                                            </vscode-button>
+                                            <vscode-button id="btn-maximize-logs" appearance="icon" title="Expandir/Recolher">
+                                                <span class="codicon codicon-screen-full" id="maximize-icon"></span>
+                                            </vscode-button>
+                                        </div>
+                                    </div>
+                                    <div class="logs-terminal-container">
+                                        <pre id="logs-content">Selecione um container ou worker para visualizar os logs...</pre>
                                     </div>
                                 </section>
                             </vscode-panel-view>

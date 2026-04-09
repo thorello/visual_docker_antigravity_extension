@@ -34,7 +34,7 @@ body {
 }
 
 .main-content {
-    padding: 1.5rem 2rem;
+    padding: 1rem 1rem;
 }
 
 .section-header {
@@ -230,76 +230,116 @@ body {
     background: rgba(var(--vscode-button-background), 0.1);
 }
 
-.logs-modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90vw;
-    height: 90vh;
-    background: var(--card-bg);
-    border: 1px solid var(--accent-color);
-    border-radius: 8px;
+.logs-section {
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
-    z-index: 1000;
+    height: calc(100vh - 200px);
 }
 
-.logs-header {
+.logs-header-inline {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 24px;
-    background: var(--vscode-editor-background);
-    border-bottom: 2px solid var(--accent-color);
-    color: var(--text-color);
-    border-radius: 8px 8px 0 0;
+    margin-bottom: 1rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid var(--border-color);
+    width: 100%;
 }
 
-.logs-header h3 {
+.logs-title-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.logs-title-group h2 {
     margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--accent-color);
+    white-space: nowrap;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
+}
+
+#logs-filter {
+    max-width: 300px;
+    width: 100%;
 }
 
 .logs-actions {
     display: flex;
-    gap: 15px;
+    gap: 4px;
+    margin-left: 1rem;
+    flex-shrink: 0;
+}
+
+.logs-actions vscode-button {
+    height: 28px;
+    width: 28px;
+    color: var(--vscode-foreground);
+    opacity: 0.8;
+}
+
+.logs-actions vscode-button:hover {
+    opacity: 1;
+    background: var(--vscode-button-secondaryHoverBackground);
+    color: var(--accent-color);
+}
+
+.logs-actions .codicon {
+    font-size: 14px;
+    display: flex;
     align-items: center;
+    justify-content: center;
 }
 
-#close-logs {
-    --button-icon-modifier: 1.5;
+#btn-clear-logs:hover {
+    color: var(--error);
 }
 
-#close-logs:hover {
-    background: var(--vscode-errorForeground);
-    color: white;
+.logs-section.maximized {
+    position: fixed;
+    top: 5px;
+    left: 5px;
+    right: 5px;
+    bottom: 5px;
+    background: var(--bg-color);
+    z-index: 10000;
+    padding: 1.5rem;
+    border: 1px solid var(--accent-color);
+    border-radius: 4px;
+    box-shadow: 0 0 50px rgba(0,0,0,0.9);
+    height: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.maximized .logs-terminal-container {
+    height: calc(100% - 60px);
+}
+
+.logs-terminal-container {
+    flex-grow: 1;
+    background: #0d0d0d;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 #logs-content {
-    padding: 15px;
+    padding: 1rem;
     margin: 0;
-    font-family: var(--vscode-editor-font-family);
-    font-size: 0.8rem;
+    font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+    font-size: 0.85rem;
     overflow-y: auto;
     white-space: pre-wrap;
     flex-grow: 1;
-    background: #1e1e1e;
-    color: #d4d4d4;
-}
-
-.hidden {
-    display: none;
-}
-
-.expand-icon {
-    margin-left: 10px;
-    opacity: 0.5;
-    transition: transform 0.3s;
+    color: #e0e0e0;
+    line-height: 1.4;
 }
 
 .loading-small, .error-small, .empty-small {
@@ -311,6 +351,16 @@ body {
 
 vscode-panels {
     width: 100%;
+}
+
+.hidden {
+    display: none;
+}
+
+.expand-icon {
+    margin-left: 10px;
+    opacity: 0.5;
+    transition: transform 0.3s;
 }
 
 vscode-panel-tab {
