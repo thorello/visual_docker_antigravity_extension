@@ -52,6 +52,32 @@ body {
     color: var(--text-color);
 }
 
+.server-title {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+}
+
+.server-alias {
+    font-size: 1.25rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.server-host {
+    font-size: 0.65rem;
+    font-weight: 500;
+    opacity: 0.5;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    font-family: var(--vscode-editor-font-family, 'Courier New', Courier, monospace);
+}
+
 .main-content {
     padding: 1.5rem;
     max-width: calc(100vw - 3rem); /* Prevenção de vazamento garantida */

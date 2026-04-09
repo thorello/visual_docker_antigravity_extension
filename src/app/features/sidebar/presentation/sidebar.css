@@ -12,6 +12,32 @@ body {
     background: transparent;
 }
 
+.extension-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-bottom: 24px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.extension-name {
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--accent-color) 0%, #4ec9b0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.extension-version {
+    font-size: 0.65rem;
+    opacity: 0.4;
+    font-weight: 600;
+    font-family: var(--vscode-editor-font-family, monospace);
+}
+
 .screen {
     display: flex;
     flex-direction: column;

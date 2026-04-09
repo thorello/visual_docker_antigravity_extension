@@ -10,7 +10,8 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly _sshService: SshService,
-        private readonly _storageService: StorageService
+        private readonly _storageService: StorageService,
+        private readonly _extensionVersion: string
     ) {}
 
     public resolveWebviewView(
@@ -124,6 +125,10 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
 				<title>SSH Sidebar</title>
 			</head>
 			<body>
+                <header class="extension-header">
+                    <span class="extension-name">Visual Docker</span>
+                    <span class="extension-version">${this._extensionVersion}</span>
+                </header>
 				<!-- List Screen -->
                 <div id="list-screen" class="screen">
                     <header class="list-header">
