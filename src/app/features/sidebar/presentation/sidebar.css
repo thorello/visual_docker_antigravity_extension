@@ -24,7 +24,7 @@ body {
 }
 
 header h2 {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     margin: 0;
     font-weight: 600;
     background: linear-gradient(135deg, #fff 0%, #aaa 100%);
@@ -91,6 +91,25 @@ header p {
 .server-meta {
     font-size: 0.75rem;
     opacity: 0.6;
+}
+
+.server-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.edit-btn {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.server-item:hover .edit-btn {
+    opacity: 1;
+}
+
+.server-actions .codicon-chevron-right {
+    opacity: 0.5;
 }
 
 .form-group {

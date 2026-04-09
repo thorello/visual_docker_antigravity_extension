@@ -14,6 +14,8 @@ export class SshService {
 
     public configId: string = '';
     public serverLabel: string = 'Remote Server';
+    public serverAlias: string = '';
+    public serverHost: string = '';
 
 
     get isConnected(): boolean {
@@ -24,8 +26,10 @@ export class SshService {
         return this._isWsl;
     }
 
-    public async connect(config: ConnectConfig & { id?: string, isWsl?: boolean, wslDistro?: string, isMock?: boolean, label?: string }): Promise<void> {
+    public async connect(config: ConnectConfig & { id?: string, isWsl?: boolean, wslDistro?: string, isMock?: boolean, label?: string, alias?: string }): Promise<void> {
         this.configId = config.id || 'default';
+        this.serverAlias = config.alias || '';
+        this.serverHost = config.host || '';
         this.serverLabel = config.label || config.host || 'Remote Server';
 
         return new Promise((resolve, reject) => {
