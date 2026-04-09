@@ -164,6 +164,26 @@ body {
     align-items: flex-start;
     width: 100%;
     min-width: 0;
+    gap: 12px;
+}
+
+.card-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.expand-icon {
+    font-size: 16px;
+    padding: 2px;
+    opacity: 0.6;
+    transition: transform 0.2s, opacity 0.2s;
+    margin-left: 4px;
+}
+
+.docker-card:hover .expand-icon {
+    opacity: 1;
 }
 
 .card-info {
