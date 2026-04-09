@@ -6,27 +6,25 @@ export class TerminalController {
     private static activeTerminals: Map<string, vscode.Terminal> = new Map();
 
     public static openSshTerminal(sshService: SshService, serverLabel: string) {
-        // If terminal already exists for this server, just show it
-        if (this.activeTerminals.has(serverLabel)) {
-            const existing = this.activeTerminals.get(serverLabel);
-            existing?.show();
-            return;
-        }
-
         const pty = new SshTerminalProvider(sshService, serverLabel);
         const terminal = vscode.window.createTerminal({
-            name: `SSH: ${serverLabel}`,
+            name: `Shell: ${serverLabel}`,
             pty
         });
 
         terminal.show();
-        this.activeTerminals.set(serverLabel, terminal);
+    }
 
-        // Remove from map when closed
-        vscode.window.onDidCloseTerminal(t => {
-            if (t === terminal) {
-                this.activeTerminals.delete(serverLabel);
-            }
+    public static openContainerTerminal(sshService: SshService, serverLabel: string, containerId: string, semanticName: string) {
+        // Agora recebemos o ID já resolvido pelo backend, mantendo o comando o mais curto possível para evitar mangling.
+        const command = `docker exec -it ${containerId} sh -c "[ -f /bin/bash ] && /bin/bash || /bin/sh"`;
+        
+        const pty = new SshTerminalProvider(sshService, serverLabel, command);
+        const terminal = vscode.window.createTerminal({
+            name: `Exec: ${semanticName} (${serverLabel})`,
+            pty
         });
+
+        terminal.show();
     }
 }

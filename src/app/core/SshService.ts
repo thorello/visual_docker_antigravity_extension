@@ -12,6 +12,8 @@ export class SshService {
     private isMock: boolean = false;
     private _isWsl: boolean = false;
 
+    public serverLabel: string = 'Remote Server';
+
     get isConnected(): boolean {
         return this.client !== null || this._isWsl || this.isMock;
     }
@@ -20,7 +22,8 @@ export class SshService {
         return this._isWsl;
     }
 
-    public async connect(config: ConnectConfig & { isWsl?: boolean, wslDistro?: string, isMock?: boolean }): Promise<void> {
+    public async connect(config: ConnectConfig & { isWsl?: boolean, wslDistro?: string, isMock?: boolean, label?: string }): Promise<void> {
+        this.serverLabel = config.label || config.host || 'Remote Server';
         return new Promise((resolve, reject) => {
             if (config.isMock) {
                 this.isMock = true;

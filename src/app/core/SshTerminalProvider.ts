@@ -9,7 +9,11 @@ export class SshTerminalProvider implements vscode.Pseudoterminal {
 
     private shellStream: any;
 
-    constructor(private sshService: SshService, private serverName: string) {}
+    constructor(
+        private sshService: SshService, 
+        private serverName: string,
+        private initialCommand?: string
+    ) {}
 
     open(initialDimensions: vscode.TerminalDimensions | undefined): void {
         this.sshService.startShell(
@@ -21,10 +25,22 @@ export class SshTerminalProvider implements vscode.Pseudoterminal {
             }
         ).then(stream => {
             this.shellStream = stream;
-            // Auto sudo su
+            // Sempre dar sudo su primeiro como pedido pelo usuário
             setTimeout(() => {
                 if (this.shellStream && this.shellStream.write) {
                     this.shellStream.write('sudo su\n');
+                    
+                    if (this.initialCommand) {
+                        // Esperamos tempo suficiente para o sudo su ser processado (tempo aumentado para estabilidade)
+                        setTimeout(() => {
+                            // Limpa a linha caso haja algum eco ou resíduo
+                            this.shellStream.write('\u0003\n');
+                            setTimeout(() => {
+                                // Comando simples agora, o ID é resolvido no backend
+                                this.shellStream.write(`${this.initialCommand}\n`);
+                            }, 500);
+                        }, 3500);
+                    }
                 }
             }, 1000);
         }).catch(err => {

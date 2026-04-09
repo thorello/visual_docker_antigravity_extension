@@ -153,33 +153,72 @@ body {
     border-top: 1px solid var(--border-color);
 }
 
-.tasks-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.75rem;
+.worker-row {
+    background: rgba(var(--vscode-editor-background), 0.3);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s;
+}
+
+.worker-row:hover {
+    background: rgba(var(--vscode-button-background), 0.1);
+    border-color: var(--accent-color);
+}
+
+.worker-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    flex-grow: 1;
+}
+
+.worker-main {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.worker-id {
+    font-weight: 600;
+    font-size: 0.9rem;
     color: var(--text-color);
 }
 
-.tasks-table th {
-    text-align: left;
-    padding: 4px;
+.worker-node {
+    font-size: 0.75rem;
     opacity: 0.6;
-    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
-.tasks-table td {
-    padding: 6px 4px;
+.worker-status-line {
+    display: flex;
+    gap: 15px;
+    font-size: 0.75rem;
+}
+
+.state-pending {
+    color: var(--vscode-charts-orange);
+    font-style: italic;
 }
 
 .task-state {
-    padding: 1px 4px;
-    border-radius: 3px;
-    background: rgba(128, 128, 128, 0.1);
+    font-weight: 600;
 }
 
 .state-running {
     color: var(--success);
-    font-weight: 600;
+}
+
+.worker-actions {
+    display: flex;
+    gap: 8px;
 }
 
 .task-row {

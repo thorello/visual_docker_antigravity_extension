@@ -121,7 +121,11 @@ function renderDockerList(containers, error) {
         };
     });
     document.querySelectorAll('#docker-list .docker-card').forEach(card => {
-        card.onclick = () => showLogs(card.getAttribute('data-id'), 'container');
+        card.onclick = () => {
+            const id = card.getAttribute('data-id');
+            const name = card.querySelector('.container-name').innerText;
+            showLogs(id, 'container', null, name);
+        };
     });
 }
 
@@ -199,35 +203,71 @@ function renderServiceTasks(serviceId, tasks, error) {
     if (error) { tasksDiv.innerHTML = `<div class="error-small">${error}</div>`; return; }
     if (tasks.length === 0) { tasksDiv.innerHTML = '<div class="empty-small">Sem workers.</div>'; return; }
 
-    tasksDiv.innerHTML = `
-        <table class="tasks-table">
-            <thead><tr><th>ID</th><th>Node</th><th>Desired</th><th>Current</th></tr></thead>
-            <tbody>
-                ${tasks.map(task => `
-                    <tr class="task-row" data-id="${task.id}" data-node="${task.node}">
-                        <td>${task.name}</td><td>${task.node}</td>
-                        <td>${task.desired}</td><td><span class="${task.current.includes('Running') ? 'state-running' : ''}">${task.current}</span></td>
-                    </tr>`).join('')}
-            </tbody>
-        </table>`;
+    tasksDiv.innerHTML = tasks.map(task => `
+        <div class="worker-row" data-id="${task.id}" data-node="${task.node}">
+            <div class="worker-info">
+                <div class="worker-main">
+                    <span class="worker-id" title="${task.id}">${task.name}</span>
+                    <span class="worker-node"><span class="codicon codicon-server"></span> ${task.node}</span>
+                </div>
+                <div class="worker-status-line">
+                    <span class="task-state ${task.current.includes('Running') ? 'state-running' : 'state-pending'}">${task.current}</span>
+                    <span class="task-desired">Alvo: ${task.desired}</span>
+                </div>
+            </div>
+            <div class="worker-actions">
+                <vscode-button appearance="icon" title="Ver Logs" class="btn-worker-logs" data-id="${task.id}" data-node="${task.node}">
+                    <span class="codicon codicon-output"></span>
+                </vscode-button>
+                <vscode-button appearance="icon" title="Abrir Terminal" class="btn-worker-term" data-id="${task.id}" data-node="${task.node}">
+                    <span class="codicon codicon-terminal"></span>
+                </vscode-button>
+            </div>
+        </div>
+    `).join('');
 
-    tasksDiv.querySelectorAll('.task-row').forEach(row => {
+    tasksDiv.querySelectorAll('.worker-row').forEach(row => {
         row.onclick = (e) => {
             e.stopPropagation();
-            showLogs(row.getAttribute('data-id'), 'worker', row.getAttribute('data-node'));
+            const id = row.getAttribute('data-id');
+            const node = row.getAttribute('data-node');
+            const name = row.querySelector('.worker-id').innerText;
+            showLogs(id, 'worker', node, name);
+        };
+    });
+
+    tasksDiv.querySelectorAll('.btn-worker-logs').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const id = btn.getAttribute('data-id');
+            const node = btn.getAttribute('data-node');
+            const row = btn.closest('.worker-row');
+            const name = row.querySelector('.worker-id').innerText;
+            showLogs(id, 'worker', node, name);
+        };
+    });
+
+    tasksDiv.querySelectorAll('.btn-worker-term').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const id = btn.getAttribute('data-id');
+            const node = btn.getAttribute('data-node');
+            const row = btn.closest('.worker-row');
+            const name = row.querySelector('.worker-id').innerText;
+            vscode.postMessage({ command: 'openWorkerTerminal', taskId: id, node: node, workerName: name });
         };
     });
 }
 
-function showLogs(id, type, node = null) {
+function showLogs(id, type, node = null, name = '') {
     logsContainer.classList.remove('hidden');
     logsContent.innerText = `Buscando logs...`;
     if (type === 'container') {
         vscode.postMessage({ command: 'getContainerLogs', containerId: id });
-        vscode.postMessage({ command: 'openContainerTerminal', containerId: id });
+        vscode.postMessage({ command: 'openContainerTerminal', containerId: id, containerName: name });
     } else {
         vscode.postMessage({ command: 'getWorkerLogs', taskId: id });
-        vscode.postMessage({ command: 'openWorkerTerminal', taskId: id, node: node });
+        vscode.postMessage({ command: 'openWorkerTerminal', taskId: id, node: node, workerName: name });
     }
 }
 
