@@ -216,6 +216,7 @@ window.addEventListener('message', event => {
             break;
         case 'recentList':
             isClientConnected = message.isConnected;
+            updateMainTitle(message.serverAlias, message.serverHost);
             renderRecentList(message.data || []);
             updateTabs();
             break;
@@ -228,6 +229,22 @@ window.addEventListener('message', event => {
 
     }
 });
+
+function updateMainTitle(alias, host) {
+    const titleEl = document.getElementById('main-title');
+    if (!titleEl) return;
+
+    if (isClientConnected && (alias || host)) {
+        titleEl.innerHTML = `
+            <div class="server-title">
+                <span class="server-alias">${alias || 'Servidor'}</span>
+                <span class="server-host">${host}</span>
+            </div>
+        `;
+    } else {
+        titleEl.innerHTML = 'Visual Docker';
+    }
+}
 
 function renderLogsMetadata(meta) {
     const banner = document.getElementById('logs-info-banner');

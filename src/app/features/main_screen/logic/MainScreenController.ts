@@ -279,7 +279,13 @@ export class MainScreenController {
 
     private sendRecentItems() {
         const recent = this.storageService.getRecentItems();
-        this._panel.webview.postMessage({ command: 'recentList', data: recent, isConnected: this.sshService.isConnected });
+        this._panel.webview.postMessage({ 
+            command: 'recentList', 
+            data: recent, 
+            isConnected: this.sshService.isConnected,
+            serverAlias: this.sshService.serverAlias,
+            serverHost: this.sshService.serverHost
+        });
     }
 
     public async refreshSwarmServices() {
@@ -333,7 +339,9 @@ export class MainScreenController {
             <body>
                 <div class="app-layout">
                     <header class="main-header">
-                        <h1>Visual Docker</h1>
+                        <div id="main-title-container">
+                            <h1 id="main-title">Visual Docker</h1>
+                        </div>
                         <div class="header-actions">
                             <vscode-button id="btn-refresh" appearance="icon" aria-label="Atualizar">
                                 <span class="codicon codicon-refresh"></span>
