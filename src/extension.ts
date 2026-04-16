@@ -54,8 +54,8 @@ export async function activate(context: vscode.ExtensionContext) {
         onDisconnectedCmd
     );
 
-    // Abrir tela principal automaticamente ao iniciar
-    vscode.commands.executeCommand('antigravity.openMainScreen');
+    // Removido a abertura automática para atender solicitação do usuário
+    // vscode.commands.executeCommand('antigravity.openMainScreen');
 }
 
 

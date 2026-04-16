@@ -13,7 +13,10 @@
   },
   "main": "./out/extension.js",
   "activationEvents": [
-    "*"
+    "onView:antigravity-sidebar-view",
+    "onCommand:antigravity.openMainScreen",
+    "onCommand:antigravity.openTerminal",
+    "onFileSystem:antigravity-fs"
   ],
   "contributes": {
     "viewsContainers": {
