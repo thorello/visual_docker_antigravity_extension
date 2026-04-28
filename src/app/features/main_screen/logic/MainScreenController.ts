@@ -137,6 +137,9 @@ export class MainScreenController {
                     case 'connectAndShowRecent':
                         this.connectAndShowRecent(message.serverId, message.item);
                         break;
+                    case 'tabChanged':
+                        this.onTabChanged(message.tabId);
+                        break;
                 }
             },
             null,
@@ -151,11 +154,31 @@ export class MainScreenController {
     }
 
     public async refreshAll() {
-        await Promise.all([
-            this.refreshDocker(),
-            this.refreshImages(),
-            this.refreshSwarmServices()
-        ]);
+        // Carregamos containers primeiro pois é a aba principal após a conexão
+        await this.refreshDocker();
+        
+        // Imagens e Swarm carregamos em background para não travar a percepção de performance
+        this.refreshImages();
+        this.refreshSwarmServices();
+    }
+
+    private onTabChanged(tabId: string) {
+        if (!this.sshService.isConnected) return;
+
+        switch (tabId) {
+            case 'tab-containers':
+                this.refreshDocker();
+                break;
+            case 'tab-images':
+                this.refreshImages();
+                break;
+            case 'tab-swarm':
+                this.refreshSwarmServices();
+                break;
+            case 'tab-recent':
+                this.sendRecentItems();
+                break;
+        }
     }
 
     public async refreshContainerLogs(containerId: string, containerName?: string) {
@@ -239,7 +262,7 @@ export class MainScreenController {
         }, async () => {
             try {
                 await this.sshService.connect(server);
-                await this.refreshAll();
+                this.refreshAll();
                 
                 // Mudar para a aba de logs automaticamente
                 this._panel.webview.postMessage({ command: 'showTab', tabId: 'tab-logs' });

@@ -31,6 +31,12 @@ const intervalSelect = document.getElementById('log-interval-select');
 const btnMaximize = document.getElementById('btn-maximize-logs');
 const maximizeIcon = document.getElementById('maximize-icon');
 const mainPanels = document.querySelector('vscode-panels');
+if (mainPanels) {
+    mainPanels.addEventListener('change', (e) => {
+        const tabId = e.target.activeid;
+        vscode.postMessage({ command: 'tabChanged', tabId });
+    });
+}
 const tabContainers = document.getElementById('tab-containers');
 const tabImages = document.getElementById('tab-images');
 const tabSwarm = document.getElementById('tab-swarm');
