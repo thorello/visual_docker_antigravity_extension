@@ -2,6 +2,7 @@ const vscode = acquireVsCodeApi();
 
 // State
 let allContainers = [];
+let allImages = [];
 let allServices = [];
 let rawRecentItems = [];
 let originalLogs = '';
@@ -11,12 +12,15 @@ let isClientConnected = false;
 // DOM Elements
 const btnRefresh = document.getElementById('btn-refresh');
 const dockerList = document.getElementById('docker-list');
+const imagesList = document.getElementById('images-list');
 const swarmList = document.getElementById('swarm-list');
 const recentList = document.getElementById('recent-list');
 
 const connectionStatus = document.getElementById('connection-status');
+const imagesStatus = document.getElementById('images-status');
 const swarmStatus = document.getElementById('swarm-status');
 const containerSearch = document.getElementById('container-search');
+const imagesSearch = document.getElementById('images-search');
 const swarmSearch = document.getElementById('swarm-search');
 const recentSearch = document.getElementById('recent-search');
 const logsContent = document.getElementById('logs-content');
@@ -28,8 +32,10 @@ const btnMaximize = document.getElementById('btn-maximize-logs');
 const maximizeIcon = document.getElementById('maximize-icon');
 const mainPanels = document.querySelector('vscode-panels');
 const tabContainers = document.getElementById('tab-containers');
+const tabImages = document.getElementById('tab-images');
 const tabSwarm = document.getElementById('tab-swarm');
 const viewContainers = document.getElementById('view-containers');
+const viewImages = document.getElementById('view-images');
 const viewSwarm = document.getElementById('view-swarm');
 
 // Logs Actions
@@ -195,6 +201,10 @@ window.addEventListener('message', event => {
             allContainers = message.data || [];
             renderDockerList(allContainers, message.error);
             break;
+        case 'imagesList':
+            allImages = message.data || [];
+            renderImagesList(allImages, message.error);
+            break;
         case 'swarmList':
             allServices = message.data || [];
             renderSwarmList(allServices, message.error);
@@ -300,17 +310,21 @@ function showConfirmation(title, body, confirmText, onConfirm) {
 function updateTabs() {
     if (isClientConnected) {
         tabContainers?.classList.remove('hidden-tab');
+        tabImages?.classList.remove('hidden-tab');
         tabSwarm?.classList.remove('hidden-tab');
         viewContainers?.classList.remove('hidden');
+        viewImages?.classList.remove('hidden');
         viewSwarm?.classList.remove('hidden');
     } else {
         tabContainers?.classList.add('hidden-tab');
+        tabImages?.classList.add('hidden-tab');
         tabSwarm?.classList.add('hidden-tab');
         viewContainers?.classList.add('hidden');
+        viewImages?.classList.add('hidden');
         viewSwarm?.classList.add('hidden');
         
         // Se a aba ativa for uma das que foram escondidas, volta para a aba 'recentes'
-        if (mainPanels && (mainPanels.activeid === 'tab-containers' || mainPanels.activeid === 'tab-swarm')) {
+        if (mainPanels && (mainPanels.activeid === 'tab-containers' || mainPanels.activeid === 'tab-images' || mainPanels.activeid === 'tab-swarm')) {
             mainPanels.activeid = 'tab-recent';
             mainPanels.setAttribute('activeid', 'tab-recent');
         }
@@ -414,6 +428,51 @@ function renderDockerList(containers, error) {
     });
 }
 
+function renderImagesList(images, error) {
+    if (error) {
+        imagesStatus.innerText = `Erro: ${error}`;
+        imagesStatus.style.color = 'var(--vscode-errorForeground)';
+        imagesList.innerHTML = `<div class="error-state">Falha ao obter imagens: ${error}</div>`;
+        return;
+    }
+
+    imagesStatus.innerText = images.length > 0 ? 'Conectado' : 'Sem imagens';
+    imagesStatus.style.color = 'var(--vscode-charts-green)';
+
+    if (images.length === 0) {
+        imagesList.innerHTML = '<div class="empty-state">Nenhuma imagem encontrada.</div>';
+        return;
+    }
+
+    imagesList.innerHTML = images.map(img => `
+        <div class="docker-card container-card" data-id="${img.id}">
+            <div class="card-main">
+                <div class="card-info">
+                    <span class="container-name" title="${img.repository}">${img.repository}</span>
+                    <span class="container-image" title="${img.tag}">Tag: ${img.tag} | Tamanho: ${img.size}</span>
+                    <span class="status-pill status-other">Criado há: ${img.created}</span>
+                </div>
+                <div class="card-actions">
+                    <vscode-button appearance="icon" title="Remover Imagem" class="btn-remove-image btn-red" data-id="${img.id}" data-name="${img.repository}:${img.tag}">
+                        <span class="codicon codicon-trash"></span>
+                    </vscode-button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    document.querySelectorAll('.btn-remove-image').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const id = btn.getAttribute('data-id');
+            const name = btn.getAttribute('data-name');
+            showConfirmation('Remover Imagem', `Tem certeza que deseja remover a imagem <b>${name}</b>?`, 'Remover', () => {
+                vscode.postMessage({ command: 'removeImage', imageId: id });
+            });
+        };
+    });
+}
+
 function renderSwarmList(services, error) {
     if (error) {
         swarmStatus.innerText = `Erro: ${error}`;
@@ -431,7 +490,7 @@ function renderSwarmList(services, error) {
     }
 
     swarmList.innerHTML = services.map(service => {
-        const [current, target] = service.replicas.split('/');
+        const [current, target] = (service.replicas || '0/0').split('/');
         const isHealthy = current === target;
         return `
         <div class="docker-card service-card" id="service-${service.id}" data-id="${service.id}">
@@ -758,6 +817,14 @@ containerSearch.addEventListener('input', (e) => {
     renderDockerList(filtered);
 });
 
+imagesSearch.addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase();
+    const filtered = allImages.filter(img => 
+        img.repository.toLowerCase().includes(term) || img.tag.toLowerCase().includes(term)
+    );
+    renderImagesList(filtered);
+});
+
 swarmSearch.addEventListener('input', (e) => {
     const term = e.target.value.toLowerCase();
     const filtered = allServices.filter(s => 
@@ -770,10 +837,12 @@ swarmSearch.addEventListener('input', (e) => {
 if (btnRefresh) {
     btnRefresh.addEventListener('click', () => {
         vscode.postMessage({ command: 'refreshDocker' });
+        vscode.postMessage({ command: 'refreshImages' });
         vscode.postMessage({ command: 'refreshSwarm' });
     });
 }
 
 // Init
 vscode.postMessage({ command: 'refreshDocker' });
+vscode.postMessage({ command: 'refreshImages' });
 vscode.postMessage({ command: 'refreshSwarm' });

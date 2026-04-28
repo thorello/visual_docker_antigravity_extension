@@ -52,33 +52,72 @@ export class MainScreenController {
                     case 'refreshSwarm':
                         this.refreshSwarmServices();
                         break;
+                    case 'refreshImages':
+                        this.refreshImages();
+                        break;
+                    case 'removeImage':
+                        try {
+                            await this.sshService.executeCommand(`sudo docker rmi -f ${message.imageId}`);
+                            this.refreshImages();
+                        } catch (err: any) {
+                            vscode.window.showErrorMessage(`Falha ao remover imagem: ${err.message}`);
+                        }
+                        break;
                     case 'stopContainer':
-                        await this.sshService.executeCommand(`sudo docker stop ${message.containerId}`);
-                        this.refreshDocker();
+                        try {
+                            await this.sshService.executeCommand(`sudo docker stop ${message.containerId}`);
+                            this.refreshDocker();
+                        } catch (err: any) {
+                            vscode.window.showErrorMessage(`Erro ao parar container: ${err.message}`);
+                        }
                         break;
                     case 'startContainer':
-                        await this.sshService.executeCommand(`sudo docker start ${message.containerId}`);
-                        this.refreshDocker();
+                        try {
+                            await this.sshService.executeCommand(`sudo docker start ${message.containerId}`);
+                            this.refreshDocker();
+                        } catch (err: any) {
+                            vscode.window.showErrorMessage(`Erro ao iniciar container: ${err.message}`);
+                        }
                         break;
                     case 'restartContainer':
-                        await this.sshService.executeCommand(`sudo docker restart ${message.containerId}`);
-                        this.refreshDocker();
+                        try {
+                            await this.sshService.executeCommand(`sudo docker restart ${message.containerId}`);
+                            this.refreshDocker();
+                        } catch (err: any) {
+                            vscode.window.showErrorMessage(`Erro ao reiniciar container: ${err.message}`);
+                        }
                         break;
                     case 'removeContainer':
-                        await this.sshService.executeCommand(`sudo docker rm -f ${message.containerId}`);
-                        this.refreshDocker();
+                        try {
+                            await this.sshService.executeCommand(`sudo docker rm -f ${message.containerId}`);
+                            this.refreshDocker();
+                        } catch (err: any) {
+                            vscode.window.showErrorMessage(`Erro ao remover container: ${err.message}`);
+                        }
                         break;
                     case 'restartService':
-                        await this.sshService.executeCommand(`sudo docker service update --force ${message.serviceName}`);
-                        this.refreshSwarmServices();
+                        try {
+                            await this.sshService.executeCommand(`sudo docker service update --force ${message.serviceName}`);
+                            this.refreshSwarmServices();
+                        } catch (err: any) {
+                            vscode.window.showErrorMessage(`Erro ao reiniciar serviço: ${err.message}`);
+                        }
                         break;
                     case 'removeService':
-                        await this.sshService.executeCommand(`sudo docker service rm ${message.serviceName}`);
-                        this.refreshSwarmServices();
+                        try {
+                            await this.sshService.executeCommand(`sudo docker service rm ${message.serviceName}`);
+                            this.refreshSwarmServices();
+                        } catch (err: any) {
+                            vscode.window.showErrorMessage(`Erro ao remover serviço: ${err.message}`);
+                        }
                         break;
                     case 'scaleService':
-                        await this.sshService.executeCommand(`sudo docker service scale ${message.serviceName}=${message.replicas}`);
-                        this.refreshSwarmServices();
+                        try {
+                            await this.sshService.executeCommand(`sudo docker service scale ${message.serviceName}=${message.replicas}`);
+                            this.refreshSwarmServices();
+                        } catch (err: any) {
+                            vscode.window.showErrorMessage(`Erro ao escalar serviço: ${err.message}`);
+                        }
                         break;
                     case 'getServiceTasks':
                         this.refreshServiceTasks(message.serviceId);
@@ -108,6 +147,7 @@ export class MainScreenController {
         this.sendRecentItems();
         if (this.sshService.isConnected) {
             this.refreshDocker();
+            this.refreshImages();
             this.refreshSwarmServices();
         }
     }
@@ -262,7 +302,7 @@ export class MainScreenController {
 
         try {
             const output = await this.sshService.executeCommand("sudo docker ps -a --format '{{.ID}}|{{.Image}}|{{.Status}}|{{.Names}}'");
-            const containers = output.trim().split('\n').filter(l => l).map(line => {
+            const containers = output.trim().split('\n').filter(l => l && l.includes('|')).map(line => {
                 const [id, image, status, name] = line.split('|');
                 return { id, image, status, name };
             });
@@ -270,6 +310,25 @@ export class MainScreenController {
             this._panel.webview.postMessage({ command: 'dockerList', data: containers });
         } catch (err: any) {
             this._panel.webview.postMessage({ command: 'dockerList', data: [], error: err.message });
+        }
+    }
+
+    public async refreshImages() {
+        if (!this.sshService.isConnected) {
+            this._panel.webview.postMessage({ command: 'imagesList', data: [], error: 'Não conectado ao servidor' });
+            return;
+        }
+
+        try {
+            const output = await this.sshService.executeCommand("sudo docker images --format '{{.ID}}|{{.Repository}}|{{.Tag}}|{{.Size}}|{{.CreatedSince}}'");
+            const images = output.trim().split('\n').filter(l => l && l.includes('|')).map(line => {
+                const [id, repository, tag, size, created] = line.split('|');
+                return { id, repository, tag, size, created };
+            });
+
+            this._panel.webview.postMessage({ command: 'imagesList', data: images });
+        } catch (err: any) {
+            this._panel.webview.postMessage({ command: 'imagesList', data: [], error: err.message });
         }
     }
 
@@ -296,7 +355,14 @@ export class MainScreenController {
 
         try {
             const output = await this.sshService.executeCommand("sudo docker service ls --format '{{.ID}}|{{.Name}}|{{.Mode}}|{{.Replicas}}|{{.Image}}'");
-            const services = output.trim().split('\n').filter(l => l).map(line => {
+            
+            // Se o output contiver erro de daemon ou não for um swarm manager, tratamos como lista vazia/erro amigável
+            if (output.includes('Error response from daemon') || output.includes('not a swarm manager')) {
+                this._panel.webview.postMessage({ command: 'swarmList', data: [], error: 'Este nó não é um Swarm Manager. Inicialize o swarm para usar esta guia.' });
+                return;
+            }
+
+            const services = output.trim().split('\n').filter(l => l && l.includes('|')).map(line => {
                 const [id, name, mode, replicas, image] = line.split('|');
                 return { id, name, mode, replicas, image };
             });
@@ -353,6 +419,7 @@ export class MainScreenController {
                             <vscode-panel-tab id="tab-recent">RECENTES</vscode-panel-tab>
                             <vscode-panel-tab id="tab-containers">CONTAINERS</vscode-panel-tab>
                             <vscode-panel-tab id="tab-swarm">SERVIÇOS (SWARM)</vscode-panel-tab>
+                            <vscode-panel-tab id="tab-images">IMAGENS</vscode-panel-tab>
                             <vscode-panel-tab id="tab-logs">LOGS</vscode-panel-tab>
                             
                             <vscode-panel-view id="view-recent">
@@ -388,7 +455,7 @@ export class MainScreenController {
                                     </div>
                                 </section>
                             </vscode-panel-view>
-                            
+
                             <vscode-panel-view id="view-swarm">
                                 <section class="docker-section">
                                     <div class="section-header">
@@ -402,6 +469,23 @@ export class MainScreenController {
                                     </div>
                                     <div id="swarm-list" class="docker-list">
                                         <div class="loading">Carregando serviços...</div>
+                                    </div>
+                                </section>
+                            </vscode-panel-view>
+
+                            <vscode-panel-view id="view-images">
+                                <section class="docker-section">
+                                    <div class="section-header">
+                                        <h2>Imagens Docker</h2>
+                                        <p id="images-status">Verificando imagens...</p>
+                                    </div>
+                                    <div class="filter-container">
+                                        <vscode-text-field id="images-search" placeholder="Filtrar por repositório ou tag...">
+                                            <span slot="start" class="codicon codicon-search"></span>
+                                        </vscode-text-field>
+                                    </div>
+                                    <div id="images-list" class="docker-list">
+                                        <div class="loading">Carregando imagens...</div>
                                     </div>
                                 </section>
                             </vscode-panel-view>

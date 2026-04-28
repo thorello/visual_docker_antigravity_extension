@@ -19,7 +19,8 @@ export class SshTerminalProvider implements vscode.Pseudoterminal {
         if (this.initialCommand) {
             // Usa exec com PTY: o comando vai direto ao kernel do servidor, sem shell interativo.
             // Isso elimina completamente o problema de mangling de caracteres em strings longas.
-            const cmd = `sudo su -c '${this.initialCommand.replace(/'/g, "'\\''")}'`;
+            // No WSL não forçamos sudo su pois pode travar pedindo senha em um terminal não-interativo
+            const cmd = this.sshService.isWsl ? this.initialCommand : `sudo su -c '${this.initialCommand.replace(/'/g, "'\\''")}'`;
             
             this.sshService.startExec(cmd,
                 (data: string) => { this.writeEmitter.fire(data); },
@@ -38,7 +39,7 @@ export class SshTerminalProvider implements vscode.Pseudoterminal {
             ).then(stream => {
                 this.shellStream = stream;
                 setTimeout(() => {
-                    if (this.shellStream && this.shellStream.write) {
+                    if (this.shellStream && this.shellStream.write && !this.sshService.isWsl) {
                         this.shellStream.write('sudo su\n');
                     }
                 }, 1000);

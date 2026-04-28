@@ -8,6 +8,7 @@ export class SshService {
     private client: Client | null = null;
     private sftpClient: SFTPWrapper | null = null;
     private wslDistro: string | null = null;
+    private wslPassword: string | null = null;
 
     private isMock: boolean = false;
     private _isWsl: boolean = false;
@@ -26,7 +27,7 @@ export class SshService {
         return this._isWsl;
     }
 
-    public async connect(config: ConnectConfig & { id?: string, isWsl?: boolean, wslDistro?: string, isMock?: boolean, label?: string, alias?: string }): Promise<void> {
+    public async connect(config: ConnectConfig & { id?: string, isWsl?: boolean, wslDistro?: string, wslPassword?: string, isMock?: boolean, label?: string, alias?: string }): Promise<void> {
         this.configId = config.id || 'default';
         this.serverAlias = config.alias || '';
         this.serverHost = config.host || '';
@@ -42,6 +43,7 @@ export class SshService {
             if (config.isWsl) {
                 this._isWsl = true;
                 this.wslDistro = config.wslDistro || null;
+                this.wslPassword = config.wslPassword || null;
                 console.log(`Conectado ao WSL. Distro: ${this.wslDistro || 'Padrão'}`);
                 resolve();
                 return;
@@ -81,6 +83,7 @@ export class SshService {
             this.client = null;
         }
         this.wslDistro = null;
+        this.wslPassword = null;
         this._isWsl = false;
         this.isMock = false;
     }
@@ -174,16 +177,27 @@ export class SshService {
             }
 
             if (this._isWsl) {
-                const args = this.wslDistro ? ['-d', this.wslDistro, '--', 'cat', `"${remotePath}"`] : ['--', 'cat', `"${remotePath}"`];
-                const cmd = `wsl ${args.join(' ')}`;
-                console.log(`[SshService] Lendo via WSL: ${cmd}`);
-                child_process.exec(cmd, { encoding: 'buffer', maxBuffer: 10 * 1024 * 1024 }, (err: any, stdout: Buffer) => {
-                    if (err) {
-                        console.error(`[SshService] Erro cat WSL: ${err.message}`);
-                        return reject(err);
+                const args = ['sh', '-c', `cat "${remotePath}"`];
+                if (this.wslDistro) {
+                    args.unshift('-d', this.wslDistro, '--');
+                } else {
+                    args.unshift('--');
+                }
+
+                console.log(`[SshService] Lendo via WSL: wsl ${args.join(' ')}`);
+                const child = child_process.spawn('wsl', args);
+                
+                const chunks: Buffer[] = [];
+                child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
+                
+                child.on('close', (code) => {
+                    if (code !== 0) {
+                        return reject(new Error(`Erro ao ler arquivo WSL (code ${code})`));
                     }
-                    resolve(stdout);
+                    resolve(Buffer.concat(chunks));
                 });
+
+                child.on('error', (err) => reject(err));
                 return;
             }
 
@@ -213,21 +227,33 @@ export class SshService {
 
             if (this._isWsl) {
                 // Usamos ; como separador para evitar interpretação do pipe (|) pelo shell do Windows
-                const args = this.wslDistro ? ['-d', this.wslDistro, '--', 'stat', '-c', '"%F;%s"', `"${remotePath}"`] : ['--', 'stat', '-c', '"%F;%s"', `"${remotePath}"`];
-                const cmd = `wsl ${args.join(' ')}`;
-                console.log(`[SshService] Stat via WSL: ${cmd}`);
-                child_process.exec(cmd, (err: any, stdout: string) => {
-                    if (err) {
-                        console.warn(`[SshService] Erro stat WSL: ${err.message}.`);
-                        // Se falhar o stat, tentamos uma heurística baseada na extensão para o fallback
+                const args = ['sh', '-c', `stat -c "%F;%s" "${remotePath}"`];
+                if (this.wslDistro) {
+                    args.unshift('-d', this.wslDistro, '--');
+                } else {
+                    args.unshift('--');
+                }
+
+                console.log(`[SshService] Stat via WSL: wsl ${args.join(' ')}`);
+                const child = child_process.spawn('wsl', args);
+                
+                let stdout = '';
+                child.stdout.on('data', data => stdout += data.toString());
+                
+                child.on('close', (code) => {
+                    if (code !== 0) {
+                        // Fallback heuristic
                         const isDir = !remotePath.split('/').pop()?.includes('.');
-                        resolve({ isDirectory: isDir, size: 0 });
-                        return;
+                        return resolve({ isDirectory: isDir, size: 0 });
                     }
-                    console.log(`[SshService] Stat WSL output: ${stdout.trim()}`);
                     const [type, sizeStr] = stdout.trim().replace(/"/g, '').split(';');
-                    const isDir = type.toLowerCase().includes('directory');
+                    const isDir = type ? type.toLowerCase().includes('directory') : false;
                     resolve({ isDirectory: isDir, size: parseInt(sizeStr) || 0 });
+                });
+
+                child.on('error', () => {
+                    const isDir = !remotePath.split('/').pop()?.includes('.');
+                    resolve({ isDirectory: isDir, size: 0 });
                 });
                 return;
             }
@@ -291,7 +317,15 @@ export class SshService {
             wslProcess.stdout.on('data', data => onData(data.toString()));
             wslProcess.stderr.on('data', data => onData(data.toString()));
             wslProcess.on('exit', () => onExit());
-            return wslProcess;
+            
+            // Retorna um objeto que simula o stream do ssh2 para compatibilidade com o SshTerminalProvider
+            return {
+                write: (data: string) => wslProcess.stdin.write(data),
+                kill: () => wslProcess.kill(),
+                stdin: wslProcess.stdin,
+                stdout: wslProcess.stdout,
+                stderr: wslProcess.stderr
+            };
         }
 
         if (!this.client) throw new Error('Not connected');
@@ -352,9 +386,65 @@ export class SshService {
                 return;
             }
             if (this._isWsl) {
-                const cmdPrefix = this.wslDistro ? `wsl -d ${this.wslDistro} --` : `wsl --`;
-                child_process.exec(`${cmdPrefix} sh -c "${command}"`, (err, stdout, stderr) => {
-                    resolve(stdout + stderr);
+                // No WSL, tentamos rodar o comando limpando o 'sudo' se ele estiver no início.
+                // Isso porque muitos usuários WSL não configuraram sudo NOPASSWD para o docker,
+                // e o docker costuma ser acessível sem sudo se o usuário estiver no grupo 'docker'.
+                const cleanCommand = command.startsWith('sudo ') ? command.substring(5) : command;
+                
+                const args = ['sh', '-c', cleanCommand];
+                if (this.wslDistro) {
+                    args.unshift('-d', this.wslDistro, '--');
+                } else {
+                    args.unshift('--');
+                }
+
+                console.log(`[SshService] Executando WSL: wsl ${args.join(' ')}`);
+                const child = child_process.spawn('wsl', args);
+                
+                let stdout = '';
+                let stderr = '';
+                
+                child.stdout.on('data', data => stdout += data.toString());
+                child.stderr.on('data', data => stderr += data.toString());
+                
+                child.on('close', (code: number) => {
+                    // Se falhou sem sudo e o comando original tinha sudo, tentamos uma última vez com o original
+                    // apenas se o erro parecer ser de permissão negada.
+                    if (code !== 0 && command.startsWith('sudo ') && stderr.toLowerCase().includes('permission denied')) {
+                        let retryCmd = command;
+                        if (this.wslPassword) {
+                            // Se temos senha, usamos sudo -S para injetar via stdin
+                            retryCmd = `echo '${this.wslPassword.replace(/'/g, "'\\''")}' | sudo -S sh -c "${command.substring(5).replace(/"/g, '\\"')}"`;
+                        }
+
+                        const originalArgs = ['sh', '-c', retryCmd];
+                        if (this.wslDistro) {
+                            originalArgs.unshift('-d', this.wslDistro, '--');
+                        } else {
+                            originalArgs.unshift('--');
+                        }
+                        
+                        const childRetry = child_process.spawn('wsl', originalArgs);
+                        let stdoutR = '';
+                        let stderrR = '';
+                        childRetry.stdout.on('data', data => stdoutR += data.toString());
+                        childRetry.stderr.on('data', data => stderrR += data.toString());
+                        childRetry.on('close', (codeR: number) => {
+                            if (codeR !== 0) {
+                                reject(new Error(stderrR || stdoutR || `Comando falhou no WSL com código ${codeR}`));
+                            } else {
+                                resolve(stdoutR);
+                            }
+                        });
+                    } else if (code !== 0) {
+                        reject(new Error(stderr || stdout || `Comando falhou no WSL com código ${code}`));
+                    } else {
+                        resolve(stdout);
+                    }
+                });
+
+                child.on('error', (err) => {
+                    resolve(`Erro ao iniciar processo WSL: ${err.message}`);
                 });
                 return;
             }
@@ -362,10 +452,17 @@ export class SshService {
             if (!this.client) return reject(new Error('Not connected'));
             this.client.exec(command, (err, stream) => {
                 if (err) return reject(err);
-                let output = '';
-                stream.on('data', (data: Buffer) => output += data.toString());
-                stream.stderr.on('data', (data: Buffer) => output += data.toString());
-                stream.on('close', () => resolve(output));
+                let stdout = '';
+                let stderr = '';
+                stream.on('data', (data: Buffer) => stdout += data.toString());
+                stream.stderr.on('data', (data: Buffer) => stderr += data.toString());
+                stream.on('close', (code: number) => {
+                    if (code !== 0) {
+                        reject(new Error(stderr || stdout || `Comando falhou com código ${code}`));
+                    } else {
+                        resolve(stdout);
+                    }
+                });
             });
         });
     }
