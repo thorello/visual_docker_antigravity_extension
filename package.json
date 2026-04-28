@@ -2,7 +2,7 @@
   "name": "visual-server",
   "displayName": "Visual Server",
   "description": "Visual Docker management for Antigravity IDE",
-  "version": "4.2.0",
+  "version": "5.0.0",
   "publisher": "antigravity",
   "repository": {
     "type": "git",
