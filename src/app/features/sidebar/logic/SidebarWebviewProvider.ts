@@ -98,9 +98,9 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
                 // Open Main Screen and Terminal
                 vscode.commands.executeCommand('antigravity.openMainScreen');
                 
-                // Switch to containers tab specifically
+                // Atualiza todas as abas (Containers, Imagens e Swarm)
                 if (MainScreenController.currentPanel) {
-                    MainScreenController.currentPanel.refreshDocker();
+                    await MainScreenController.currentPanel.refreshAll();
                     MainScreenController.currentPanel.showTab('tab-containers');
                 }
                 

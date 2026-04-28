@@ -146,10 +146,16 @@ export class MainScreenController {
         // Auto refresh on start if connected
         this.sendRecentItems();
         if (this.sshService.isConnected) {
-            this.refreshDocker();
-            this.refreshImages();
-            this.refreshSwarmServices();
+            this.refreshAll();
         }
+    }
+
+    public async refreshAll() {
+        await Promise.all([
+            this.refreshDocker(),
+            this.refreshImages(),
+            this.refreshSwarmServices()
+        ]);
     }
 
     public async refreshContainerLogs(containerId: string, containerName?: string) {
@@ -233,8 +239,7 @@ export class MainScreenController {
         }, async () => {
             try {
                 await this.sshService.connect(server);
-                this.refreshDocker();
-                this.refreshSwarmServices();
+                await this.refreshAll();
                 
                 // Mudar para a aba de logs automaticamente
                 this._panel.webview.postMessage({ command: 'showTab', tabId: 'tab-logs' });
@@ -281,7 +286,7 @@ export class MainScreenController {
 
         try {
             const output = await this.sshService.executeCommand(`sudo docker service ps ${serviceId} --format '{{.ID}}|{{.Name}}|{{.Node}}|{{.DesiredState}}|{{.CurrentState}}'`);
-            const tasks = output.trim().split('\n').filter(l => l).map(line => {
+            const tasks = output.trim().split('\n').filter(l => l && l.includes('|')).map(line => {
                 const [id, name, node, desired, current] = line.split('|');
                 return { id, name, node, desired, current };
             });
@@ -369,7 +374,12 @@ export class MainScreenController {
 
             this._panel.webview.postMessage({ command: 'swarmList', data: services });
         } catch (err: any) {
-            this._panel.webview.postMessage({ command: 'swarmList', data: [], error: err.message });
+            const errorMsg = err.message || '';
+            if (errorMsg.includes('Error response from daemon') || errorMsg.includes('not a swarm manager')) {
+                this._panel.webview.postMessage({ command: 'swarmList', data: [], error: 'Este nó não é um Swarm Manager. Inicialize o swarm para usar esta guia.' });
+            } else {
+                this._panel.webview.postMessage({ command: 'swarmList', data: [], error: err.message });
+            }
         }
     }
 
