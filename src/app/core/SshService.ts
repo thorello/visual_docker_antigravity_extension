@@ -28,6 +28,7 @@ export class SshService {
     }
 
     public async connect(config: ConnectConfig & { id?: string, isWsl?: boolean, wslDistro?: string, wslPassword?: string, isMock?: boolean, label?: string, alias?: string }): Promise<void> {
+        this.disconnect();
         this.configId = config.id || 'default';
         this.serverAlias = config.alias || '';
         this.serverHost = config.host || '';
