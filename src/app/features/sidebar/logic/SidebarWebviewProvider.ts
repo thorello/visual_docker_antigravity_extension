@@ -58,17 +58,19 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
                     break;
                 }
                 case 'saveAndConnect': {
-                    const { id, alias, host, port, username, password } = data.value;
-                    const serverId = id || `ssh-${host}-${port}-${username}`;
+                    const { id, alias, host, port, username, password, isWsl, wslDistro, wslPassword } = data.value;
+                    const serverId = id || (isWsl ? `wsl-${wslDistro || 'default'}-${Date.now()}` : `ssh-${host}-${port}-${username}`);
                     const server = { 
                         id: serverId,
-                        label: alias || host,
+                        label: alias || (isWsl ? `WSL: ${wslDistro || 'Padrão'}` : host),
                         alias,
-                        host, 
-                        port: parseInt(port), 
-                        username, 
+                        host: host || 'localhost', 
+                        port: port ? parseInt(port) : 22, 
+                        username: username || 'root', 
                         password,
-                        isWsl: false
+                        isWsl: !!isWsl,
+                        wslDistro: wslDistro || undefined,
+                        wslPassword: wslPassword || undefined
                     };
                     
                     await this._storageService.addServer(server);
@@ -158,20 +160,39 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
 						<vscode-text-field id="alias" placeholder="ex: Servidor de Produção">Apelido (Opcional)</vscode-text-field>
 					</div>
 
-					<div class="form-group">
-						<vscode-text-field id="host" placeholder="ex: 192.168.1.10">Host / IP</vscode-text-field>
-					</div>
-					
-					<div class="form-group">
-						<vscode-text-field id="port" value="22">Porta</vscode-text-field>
-					</div>
-
-					<div class="form-group">
-						<vscode-text-field id="username" placeholder="root">Usuário</vscode-text-field>
+					<div class="form-group" style="margin-bottom: 10px;">
+						<label style="display:block; margin-bottom: 5px; font-size: var(--type-ramp-base-font-size);">Tipo de Conexão</label>
+						<vscode-dropdown id="connectionType" style="width: 100%;">
+							<vscode-option value="ssh">Servidor Remoto (SSH)</vscode-option>
+							<vscode-option value="wsl">Ambiente Local (WSL)</vscode-option>
+						</vscode-dropdown>
 					</div>
 
-					<div class="form-group">
-						<vscode-text-field id="password" type="password">Senha</vscode-text-field>
+					<div id="sshFields">
+						<div class="form-group">
+							<vscode-text-field id="host" placeholder="ex: 192.168.1.10">Host / IP</vscode-text-field>
+						</div>
+						
+						<div class="form-group">
+							<vscode-text-field id="port" value="22">Porta</vscode-text-field>
+						</div>
+
+						<div class="form-group">
+							<vscode-text-field id="username" placeholder="root">Usuário</vscode-text-field>
+						</div>
+
+						<div class="form-group">
+							<vscode-text-field id="password" type="password">Senha</vscode-text-field>
+						</div>
+					</div>
+
+					<div id="wslFields" style="display: none;">
+						<div class="form-group">
+							<vscode-text-field id="wslDistro" placeholder="ex: Ubuntu-20.04 (vazio para padrão)">Distribuição WSL</vscode-text-field>
+						</div>
+						<div class="form-group">
+							<vscode-text-field id="wslPassword" type="password">Senha Sudo (Opcional)</vscode-text-field>
+						</div>
 					</div>
 
                     <input type="hidden" id="serverId">
