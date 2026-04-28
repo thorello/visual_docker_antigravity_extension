@@ -100,7 +100,7 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
                 
                 // Atualiza todas as abas (Containers, Imagens e Swarm)
                 if (MainScreenController.currentPanel) {
-                    await MainScreenController.currentPanel.refreshAll();
+                    MainScreenController.currentPanel.refreshAll();
                     MainScreenController.currentPanel.showTab('tab-containers');
                 }
                 
