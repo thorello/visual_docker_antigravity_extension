@@ -491,7 +491,7 @@ export class MainScreenController {
                             </vscode-panel-view>
 
                             <vscode-panel-view id="view-logs">
-                                <section class="docker-section logs-section maximized" id="logs-section">
+                                <section class="docker-section logs-section" id="logs-section">
                                     <div class="logs-header-inline">
                                         <div class="logs-title-group">
                                             <h2 id="logs-title">Logs</h2>
